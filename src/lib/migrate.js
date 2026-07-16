@@ -46,6 +46,7 @@ export async function runMigrations() {
       session_id INTEGER REFERENCES sessions(id) ON DELETE CASCADE,
       participant_key TEXT NOT NULL,
       role TEXT NOT NULL,
+      experience TEXT DEFAULT 'beginner',
       name TEXT,
       joined_at TIMESTAMPTZ DEFAULT NOW(),
       UNIQUE(session_id, participant_key)
@@ -64,12 +65,25 @@ export async function runMigrations() {
     )`,
   ];
 
+  const alters = [
+    `ALTER TABLE participants ADD COLUMN IF NOT EXISTS experience TEXT DEFAULT 'beginner'`,
+  ];
+
   const results = [];
   for (const sql of statements) {
     await query(sql);
     // Extract table name for logging
     const match = sql.match(/CREATE TABLE IF NOT EXISTS (\w+)/);
     results.push(match ? match[1] : 'unknown');
+  }
+
+  for (const sql of alters) {
+    try {
+      await query(sql);
+      results.push('altered participants');
+    } catch (e) {
+      console.error('Alter table failed:', e.message);
+    }
   }
 
   return results;

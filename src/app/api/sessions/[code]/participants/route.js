@@ -9,7 +9,7 @@ export async function POST(request, { params }) {
   try {
     const { code } = await params;
     const body = await request.json();
-    const { participantKey, role, name } = body;
+    const { participantKey, role, name, experience } = body;
 
     if (!participantKey || !role) {
       return NextResponse.json(
@@ -30,11 +30,11 @@ export async function POST(request, { params }) {
 
     // Upsert participant
     const rows = await query(
-      `INSERT INTO participants (session_id, participant_key, role, name)
-       VALUES ($1, $2, $3, $4)
-       ON CONFLICT (session_id, participant_key) DO UPDATE SET role = $3, name = $4
-       RETURNING id, participant_key, role, name, joined_at`,
-      [sessionId, participantKey, role, name || null]
+      `INSERT INTO participants (session_id, participant_key, role, experience, name)
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (session_id, participant_key) DO UPDATE SET role = $3, experience = $4, name = $5
+       RETURNING id, participant_key, role, experience, name, joined_at`,
+      [sessionId, participantKey, role, experience || 'beginner', name || null]
     );
 
     return NextResponse.json(rows[0]);
@@ -62,7 +62,7 @@ export async function GET(request, { params }) {
 
     // Get all participants
     const participantRows = await query(
-      `SELECT id, participant_key, role, name, joined_at
+      `SELECT id, participant_key, role, experience, name, joined_at
        FROM participants WHERE session_id = $1 ORDER BY joined_at`,
       [sessionId]
     );
@@ -95,6 +95,7 @@ export async function GET(request, { params }) {
       id: p.participant_key,
       dbId: p.id,
       role: p.role,
+      experience: p.experience || 'beginner',
       name: p.name || '',
       joinedAt: new Date(p.joined_at).getTime(),
       votes: votesByParticipant[p.id] || {},

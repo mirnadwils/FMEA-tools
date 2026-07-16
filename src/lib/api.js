@@ -65,10 +65,10 @@ export async function getFMStatus(code) {
 
 // ---- Participants ----
 
-export async function joinSession(code, participantKey, role, name) {
+export async function joinSession(code, participantKey, role, name, experience) {
   return fetchJSON(`${BASE}/sessions/${encodeURIComponent(code)}/participants`, {
     method: 'POST',
-    body: JSON.stringify({ participantKey, role, name }),
+    body: JSON.stringify({ participantKey, role, name, experience }),
   });
 }
 

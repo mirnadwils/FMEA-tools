@@ -55,7 +55,7 @@ export async function GET(request, { params }) {
 
     // Get participants
     const participantRows = await query(
-      `SELECT id, participant_key, role, name, joined_at
+      `SELECT id, participant_key, role, experience, name, joined_at
        FROM participants WHERE session_id = $1 ORDER BY joined_at`,
       [sessionId]
     );
@@ -85,6 +85,7 @@ export async function GET(request, { params }) {
       id: p.participant_key,
       dbId: p.id,
       role: p.role,
+      experience: p.experience || 'beginner',
       name: p.name || '',
       joinedAt: new Date(p.joined_at).getTime(),
       votes: votesByParticipant[p.id] || {},
