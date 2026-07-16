@@ -31,6 +31,8 @@ const ROLES = [
   'Lainnya',
 ];
 
+const EXPERIENCE_WEIGHT = { beginner: 1, experienced: 2, expert: 3 };
+
 const LIKELIHOOD_SCALE = [
   { val: 1, label: 'Remote', prob: '< 1/1.000.000', color: 'blue',
     desc: 'Perlu beberapa kejadian independen yang terjadi bersamaan/berurutan agar failure terjadi; kemungkinan hampir dapat diabaikan.' },
@@ -88,6 +90,17 @@ function roundRating(avg, max) {
 
 function scaleMeta(scaleArr, val) {
   return scaleArr.find((s) => s.val === val) || null;
+}
+
+function weightedAvg(votes, field) {
+  if (!votes.length) return null;
+  let sumWV = 0, sumW = 0;
+  for (const v of votes) {
+    const w = EXPERIENCE_WEIGHT[v.experience] || 1;
+    sumWV += v[field] * w;
+    sumW += w;
+  }
+  return sumW ? sumWV / sumW : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -319,9 +332,9 @@ function MiniBar({ data, height = 110 }) {
 
 function FMResultCard({ fm, votes }) {
   const n = votes.length;
-  const avgL = n ? votes.reduce((a, v) => a + v.likelihood, 0) / n : null;
-  const avgS = n ? votes.reduce((a, v) => a + v.severity, 0) / n : null;
-  const avgD = n ? votes.reduce((a, v) => a + v.detection, 0) / n : null;
+  const avgL = weightedAvg(votes, 'likelihood');
+  const avgS = weightedAvg(votes, 'severity');
+  const avgD = weightedAvg(votes, 'detection');
   const rL = roundRating(avgL, 5);
   const rS = roundRating(avgS, 5);
   const rD = roundRating(avgD, 4);
@@ -452,12 +465,12 @@ function FacilitatorSetup({ onBack, onSessionReady }) {
         <div>
           <label className="text-xs font-semibold text-slate-500">Nama Sesi / Proyek</label>
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="cth. PFMA Bypass TSF - Pani Gold Project"
-            className="w-full mt-1 px-3 py-2 border border-slate-300 rounded-lg text-sm" />
+            className="w-full mt-1 px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 placeholder:text-slate-400" />
         </div>
         <div>
           <label className="text-xs font-semibold text-slate-500">Nama Fasilitator (opsional)</label>
           <input value={facilitator} onChange={(e) => setFacilitator(e.target.value)} placeholder="cth. Mirna"
-            className="w-full mt-1 px-3 py-2 border border-slate-300 rounded-lg text-sm" />
+            className="w-full mt-1 px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 placeholder:text-slate-400" />
         </div>
         {err && <div className="text-sm text-red-600 flex items-center gap-1"><AlertTriangle size={14} /> {err}</div>}
         <button disabled={busy} onClick={createSession} className="w-full bg-teal-600 hover:bg-teal-700 text-white font-semibold py-2.5 rounded-lg">
@@ -470,7 +483,7 @@ function FacilitatorSetup({ onBack, onSessionReady }) {
       <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-3">
         <label className="text-xs font-semibold text-slate-500">Lanjutkan sesi yang sudah ada (kode sesi)</label>
         <input value={existingCode} onChange={(e) => setExistingCode(e.target.value.toUpperCase())} placeholder="cth. K7X9QM" maxLength={6}
-          className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm tracking-widest font-mono" />
+          className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm tracking-widest font-mono text-slate-900 placeholder:text-slate-400" />
         <button disabled={busy} onClick={loadSession} className="w-full bg-slate-800 hover:bg-slate-900 text-white font-semibold py-2.5 rounded-lg">
           Lanjutkan Sesi
         </button>
@@ -620,11 +633,15 @@ function ControlTab({ session, onUpdateSession }) {
 
 function ResultsTab({ session, participants }) {
   const sorted = [...session.fmList].map((fm) => {
-    const votes = participants.map((p) => p.votes?.[fm.no]).filter(Boolean);
+    const votes = participants.map((p) => {
+      const v = p.votes?.[fm.no];
+      if (!v) return null;
+      return { ...v, experience: p.experience || 'beginner' };
+    }).filter(Boolean);
     const n = votes.length;
-    const avgL = n ? votes.reduce((a, v) => a + v.likelihood, 0) / n : null;
-    const avgS = n ? votes.reduce((a, v) => a + v.severity, 0) / n : null;
-    const avgD = n ? votes.reduce((a, v) => a + v.detection, 0) / n : null;
+    const avgL = weightedAvg(votes, 'likelihood');
+    const avgS = weightedAvg(votes, 'severity');
+    const avgD = weightedAvg(votes, 'detection');
     const rL = roundRating(avgL, 5), rS = roundRating(avgS, 5), rD = roundRating(avgD, 4);
     const rpn = rL && rS && rD ? rL * rS * rD : -1;
     return { fm, votes, rpn };
@@ -652,11 +669,15 @@ function ResultsTab({ session, participants }) {
 function ExportTab({ session, participants }) {
   function buildRows() {
     return session.fmList.map((fm) => {
-      const votes = participants.map((p) => p.votes?.[fm.no]).filter(Boolean);
+      const votes = participants.map((p) => {
+        const v = p.votes?.[fm.no];
+        if (!v) return null;
+        return { ...v, experience: p.experience || 'beginner' };
+      }).filter(Boolean);
       const n = votes.length;
-      const avgL = n ? votes.reduce((a, v) => a + v.likelihood, 0) / n : null;
-      const avgS = n ? votes.reduce((a, v) => a + v.severity, 0) / n : null;
-      const avgD = n ? votes.reduce((a, v) => a + v.detection, 0) / n : null;
+      const avgL = weightedAvg(votes, 'likelihood');
+      const avgS = weightedAvg(votes, 'severity');
+      const avgD = weightedAvg(votes, 'detection');
       const rL = roundRating(avgL, 5), rS = roundRating(avgS, 5), rD = roundRating(avgD, 4);
       const rpn = rL && rS && rD ? rL * rS * rD : '';
       const cat = rpn ? rpnCategory(rpn).label : '';
@@ -680,7 +701,8 @@ function ExportTab({ session, participants }) {
     participants.forEach((p) => {
       Object.entries(p.votes || {}).forEach(([fmNo, v]) => {
         rows.push({
-          'FM No.': fmNo, 'Role Peserta': p.role, 'Nama Peserta': p.name || '(anonim)',
+          'FM No.': fmNo, 'Role Peserta': p.role, 'Experience': p.experience || 'beginner',
+          'Nama Peserta': p.name || '(anonim)',
           'Likelihood': v.likelihood, 'Severity': v.severity, 'Detection': v.detection,
           'Waktu': new Date(v.ts).toLocaleString('id-ID'),
         });
@@ -787,6 +809,7 @@ function FacilitatorDashboard({ session, onUpdateSession, onExit }) {
 function ParticipantJoin({ onBack, onJoined }) {
   const [code, setCode] = useState('');
   const [role, setRole] = useState('');
+  const [experience, setExperience] = useState('');
   const [name, setName] = useState('');
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
@@ -795,6 +818,7 @@ function ParticipantJoin({ onBack, onJoined }) {
     const c = code.trim().toUpperCase();
     if (!c) { setErr('Masukkan kode sesi.'); return; }
     if (!role) { setErr('Pilih role Anda.'); return; }
+    if (!experience) { setErr('Pilih level pengalaman Anda.'); return; }
     setBusy(true);
     const session = await storGet(sKey(c));
     setBusy(false);
@@ -802,7 +826,7 @@ function ParticipantJoin({ onBack, onJoined }) {
     const id = name.trim() ? `${slug(role)}__${slug(name)}` : `anon-${Math.random().toString(36).slice(2, 9)}`;
     let participant = await storGet(pKey(c, id));
     if (!participant) {
-      participant = { id, role, name: name.trim(), joinedAt: Date.now(), votes: {} };
+      participant = { id, role, experience, name: name.trim(), joinedAt: Date.now(), votes: {} };
       await storSet(pKey(c, id), participant);
     }
     onJoined({ session, participant });
@@ -816,19 +840,28 @@ function ParticipantJoin({ onBack, onJoined }) {
         <div>
           <label className="text-xs font-semibold text-slate-500">Kode Sesi</label>
           <input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} maxLength={6} placeholder="cth. K7X9QM"
-            className="w-full mt-1 px-3 py-2.5 border border-slate-300 rounded-lg text-lg tracking-widest font-mono text-center" />
+            className="w-full mt-1 px-3 py-2.5 border border-slate-300 rounded-lg text-lg tracking-widest font-mono text-center text-slate-900 placeholder:text-slate-400" />
         </div>
         <div>
           <label className="text-xs font-semibold text-slate-500">Role / Background Anda</label>
-          <select value={role} onChange={(e) => setRole(e.target.value)} className="w-full mt-1 px-3 py-2.5 border border-slate-300 rounded-lg text-sm bg-white">
+          <select value={role} onChange={(e) => setRole(e.target.value)} className="w-full mt-1 px-3 py-2.5 border border-slate-300 rounded-lg text-sm bg-white text-slate-900">
             <option value="">-- Pilih Role --</option>
             {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
           </select>
         </div>
         <div>
+          <label className="text-xs font-semibold text-slate-500">Experience in FMEA / Dam Engineering</label>
+          <select value={experience} onChange={(e) => setExperience(e.target.value)} className="w-full mt-1 px-3 py-2.5 border border-slate-300 rounded-lg text-sm bg-white text-slate-900">
+            <option value="">-- Pilih Level Pengalaman --</option>
+            <option value="beginner">Beginner</option>
+            <option value="experienced">Experienced</option>
+            <option value="expert">Expert</option>
+          </select>
+        </div>
+        <div>
           <label className="text-xs font-semibold text-slate-500">Nama (opsional, membantu jika Anda perlu reload halaman)</label>
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="cth. Budi"
-            className="w-full mt-1 px-3 py-2 border border-slate-300 rounded-lg text-sm" />
+            className="w-full mt-1 px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 placeholder:text-slate-400" />
         </div>
         {err && <div className="text-sm text-red-600 flex items-center gap-1"><AlertTriangle size={14} /> {err}</div>}
         <button disabled={busy} onClick={join} className="w-full bg-teal-600 hover:bg-teal-700 text-white font-semibold py-2.5 rounded-lg flex items-center justify-center gap-2">
@@ -876,7 +909,15 @@ function ParticipantMain({ initialSession, participant, onExit }) {
         <div>
           <button onClick={onExit} className="text-slate-400 flex items-center gap-1 text-xs mb-1 hover:text-slate-600"><ArrowLeft size={13} /> Keluar</button>
           <h2 className="text-lg font-bold text-slate-800">{session.name}</h2>
-          <div className="text-xs text-slate-400">Role: <b className="text-slate-600">{participant.role}</b>{participant.name ? ` · ${participant.name}` : ''}</div>
+          <div className="text-xs text-slate-400 flex items-center gap-1.5 flex-wrap">
+            <span>Role:</span> <b className="text-slate-600">{participant.role}</b>
+            {participant.experience && (
+              <Badge color={participant.experience === 'expert' ? 'blue' : participant.experience === 'experienced' ? 'green' : 'yellow'}>
+                {participant.experience === 'expert' ? 'Expert' : participant.experience === 'experienced' ? 'Experienced' : 'Beginner'}
+              </Badge>
+            )}
+            {participant.name ? <span>· {participant.name}</span> : null}
+          </div>
         </div>
         <button onClick={refresh} className="p-2 text-slate-400 hover:text-slate-600"><RefreshCw size={16} /></button>
       </div>
