@@ -1,112 +1,33 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useUser } from '@clerk/nextjs';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, CartesianGrid } from 'recharts';
 import * as XLSX from 'xlsx';
 import {
   Lock, Unlock, Upload, Download, Users, BarChart3, ArrowLeft, CheckCircle2,
-  Copy, RefreshCw, ClipboardList, LogIn, Settings, AlertTriangle, Trophy,
-  FileSpreadsheet, ChevronRight, UserPlus, Printer, HardHat
+  Copy, RefreshCw, ClipboardList, Settings, AlertTriangle, Trophy,
+  FileSpreadsheet, ChevronRight, HardHat, Shield, Sparkles,
+  BookOpen, Send, RotateCcw, Eye, LogIn
 } from 'lucide-react';
 import * as api from '@/lib/api';
+import { t, PROFESSIONAL_ROLES, EXPERIENCE_LEVELS, EXPERIENCE_WEIGHT } from '@/lib/i18n';
+import {
+  LIKELIHOOD_LEVELS, NEGATIVE_CONSEQUENCE_LEVELS, POSITIVE_CONSEQUENCE_LEVELS,
+  getRiskCell, getOpportunityCell, RISK_LEVEL_CONFIG, OPPORTUNITY_LEVEL_CONFIG,
+} from '@/lib/merdeka';
+import AppShell, { LangProvider, useLang } from './AppShell';
+import ProfileSetup from './ProfileSetup';
+import AssessmentForm from './AssessmentForm';
+import GuidelineTab from './GuidelineTab';
 
 /* =========================================================================
-   FMEA WORKSHOP TOOL — SGO
-   Alat pengisian Preliminary FMEA (PFMA) untuk workshop multi-peserta.
-   Data disimpan di NeonDB PostgreSQL melalui Next.js API routes.
+   FMEA WORKSHOP TOOL v2 — PT Solusi Geotek Optima
+   Clerk-authenticated, Merdeka Risk & Opportunity Matrix
    ========================================================================= */
 
 // ---------------------------------------------------------------------------
-// KONSTANTA — SKALA PENILAIAN (sesuai kriteria SGO)
-// ---------------------------------------------------------------------------
-
-const ROLES = [
-  'Owner',
-  'Engineer of Record',
-  'Geotechnical Engineer',
-  'Environmental Engineer',
-  'Hydraulic Engineer',
-  'Seismic Engineer',
-  'Operation',
-  'Instrumentation Engineer',
-  'ITRB',
-  'Lainnya',
-];
-
-const EXPERIENCE_WEIGHT = { beginner: 1, experienced: 2, expert: 3 };
-
-const LIKELIHOOD_SCALE = [
-  { val: 1, label: 'Remote', prob: '< 1/1.000.000', color: 'blue',
-    desc: 'Perlu beberapa kejadian independen yang terjadi bersamaan/berurutan agar failure terjadi; kemungkinan hampir dapat diabaikan.' },
-  { val: 2, label: 'Low', prob: '1/1.000.000 – 1/100.000', color: 'green',
-    desc: 'Kemungkinan tidak bisa disingkirkan, namun tidak ada bukti kuat bahwa inisiasi telah terjadi atau kondisi tersebut ada.' },
-  { val: 3, label: 'Moderate', prob: '1/100.000 – 1/10.000', color: 'yellow',
-    desc: 'Kondisi/defect fundamental diketahui ada; bukti tidak langsung condong ke arah "less likely".' },
-  { val: 4, label: 'High', prob: '1/10.000 – 1/1.000', color: 'orange',
-    desc: 'Kondisi/defect fundamental diketahui ada; bukti tidak langsung condong ke arah "more likely".' },
-  { val: 5, label: 'Very High', prob: '> 1/1.000', color: 'red',
-    desc: 'Ada bukti langsung/tidak langsung substansial bahwa failure mode sudah mulai terjadi atau kemungkinan besar akan terjadi.' },
-];
-
-const SEVERITY_SCALE = [
-  { val: 1, label: 'Low', color: 'blue', desc: 'Konsekuensi minor terhadap keselamatan publik, lingkungan, infrastruktur, atau reputasi (Rating Matrix 1–2).' },
-  { val: 2, label: 'Significant', color: 'green', desc: 'Konsekuensi cukup berarti namun masih terbatas (Rating Matrix 3).' },
-  { val: 3, label: 'High', color: 'yellow', desc: 'Konsekuensi signifikan terhadap keselamatan publik/lingkungan/operasional (Rating Matrix 4).' },
-  { val: 4, label: 'Very High', color: 'orange', desc: 'Konsekuensi besar dan meluas (Rating Matrix 5–6).' },
-  { val: 5, label: 'Extreme', color: 'red', desc: 'Konsekuensi maksimum/katastropik (Rating Matrix 7–8).' },
-];
-
-const DETECTION_SCALE = [
-  { val: 1, label: 'Effective', color: 'green',
-    desc: 'Kontrol dirancang dan beroperasi efektif pada semua kondisi; seluruh elemen desain & implementasi memadai.' },
-  { val: 2, label: 'Partially Effective', color: 'yellow',
-    desc: 'Sebagian aspek desain/implementasi kontrol kurang memadai atau hanya berfungsi sebagian.' },
-  { val: 3, label: 'Partially Effective', color: 'yellow',
-    desc: 'Sebagian aspek desain/implementasi kontrol kurang memadai atau hanya berfungsi sebagian (mendekati ineffective).' },
-  { val: 4, label: 'Ineffective', color: 'red',
-    desc: 'Kontrol tidak ada atau dirancang/beroperasi secara tidak efektif dalam mencapai tujuan.' },
-];
-
-const COLOR_MAP = {
-  blue:   { chip: 'bg-blue-50 border-blue-300 text-blue-800',     ring: 'ring-blue-400',   solid: '#3b82f6', soft: 'bg-blue-100' },
-  green:  { chip: 'bg-green-50 border-green-300 text-green-800',  ring: 'ring-green-400',  solid: '#22c55e', soft: 'bg-green-100' },
-  lime:   { chip: 'bg-lime-50 border-lime-300 text-lime-800',     ring: 'ring-lime-400',   solid: '#84cc16', soft: 'bg-lime-100' },
-  yellow: { chip: 'bg-yellow-50 border-yellow-300 text-yellow-800', ring: 'ring-yellow-400', solid: '#eab308', soft: 'bg-yellow-100' },
-  orange: { chip: 'bg-orange-50 border-orange-300 text-orange-800', ring: 'ring-orange-400', solid: '#f97316', soft: 'bg-orange-100' },
-  red:    { chip: 'bg-red-50 border-red-300 text-red-800',        ring: 'ring-red-400',    solid: '#ef4444', soft: 'bg-red-100' },
-};
-
-function rpnCategory(rpn) {
-  if (rpn <= 8) return { label: 'Low', color: 'green' };
-  if (rpn <= 20) return { label: 'Medium', color: 'lime' };
-  if (rpn <= 40) return { label: 'High', color: 'yellow' };
-  if (rpn <= 60) return { label: 'Extreme', color: 'orange' };
-  return { label: 'Critical', color: 'red' };
-}
-
-function roundRating(avg, max) {
-  if (avg == null || isNaN(avg)) return null;
-  const r = Math.round(avg);
-  return Math.min(max, Math.max(1, r));
-}
-
-function scaleMeta(scaleArr, val) {
-  return scaleArr.find((s) => s.val === val) || null;
-}
-
-function weightedAvg(votes, field) {
-  if (!votes.length) return null;
-  let sumWV = 0, sumW = 0;
-  for (const v of votes) {
-    const w = EXPERIENCE_WEIGHT[v.experience] || 1;
-    sumWV += v[field] * w;
-    sumW += w;
-  }
-  return sumW ? sumWV / sumW : null;
-}
-
-// ---------------------------------------------------------------------------
-// UTIL — kode sesi, import excel
+// UTILITY
 // ---------------------------------------------------------------------------
 
 function generateCode() {
@@ -117,48 +38,55 @@ function generateCode() {
 }
 
 function slug(str) {
-  return String(str || '')
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)/g, '');
+  return String(str || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 }
 
 function findVal(row, keywords) {
   const keys = Object.keys(row);
-  const key = keys.find((k) => {
-    const kl = k.toLowerCase();
-    return keywords.every((kw) => kl.includes(kw));
-  });
+  const key = keys.find((k) => keywords.every((kw) => k.toLowerCase().includes(kw)));
   return key !== undefined ? String(row[key] ?? '').trim() : '';
 }
 
 function mapRowToFM(row, idx) {
   const no = findVal(row, ['fm', 'no']) || String(idx + 1);
   return {
-    no,
-    category: findVal(row, ['category']),
-    title: findVal(row, ['potential', 'failure']),
+    no, category: findVal(row, ['category']), title: findVal(row, ['potential', 'failure']),
     mechanism: findVal(row, ['trigger']) || findVal(row, ['mechanism']),
-    initiation: findVal(row, ['initiation']),
-    continuation: findVal(row, ['continuation']),
+    initiation: findVal(row, ['initiation']), continuation: findVal(row, ['continuation']),
     progression: findVal(row, ['progression']),
     detectionMonitoring: findVal(row, ['detection', 'monitoring']),
     intervention: findVal(row, ['intervention']) || findVal(row, ['controls']),
-    effect: findVal(row, ['effect']),
-    notes: findVal(row, ['notes']),
+    effect: findVal(row, ['effect']), notes: findVal(row, ['notes']),
     ownerAction: findVal(row, ['owner']),
   };
 }
 
+function weightedAvg(assessments, riskField, expField) {
+  if (!assessments || !assessments.length) return null;
+  let sumWV = 0, sumW = 0;
+  for (const a of assessments) {
+    const w = EXPERIENCE_WEIGHT[a.experience] || 1;
+    const val = a[riskField];
+    if (val != null) { sumWV += val * w; sumW += w; }
+  }
+  return sumW ? sumWV / sumW : null;
+}
+
+function roundRating(avg, max) {
+  if (avg == null || isNaN(avg)) return null;
+  return Math.min(max, Math.max(1, Math.round(avg)));
+}
+
 // ---------------------------------------------------------------------------
-// KOMPONEN KECIL
+// SMALL COMPONENTS
 // ---------------------------------------------------------------------------
 
-function Badge({ color = 'blue', children }) {
-  const c = COLOR_MAP[color] || COLOR_MAP.blue;
+function Badge({ color = '#64748b', bgColor = '#f1f5f9', children }) {
   return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-semibold ${c.chip}`}>
+    <span
+      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold border"
+      style={{ color, backgroundColor: bgColor, borderColor: `${color}40` }}
+    >
       {children}
     </span>
   );
@@ -166,218 +94,66 @@ function Badge({ color = 'blue', children }) {
 
 function StatCard({ icon, label, value, sub }) {
   return (
-    <div className="bg-white border border-slate-200 rounded-xl p-4 flex items-start gap-3">
-      <div className="p-2 rounded-lg bg-slate-100 text-slate-600">{icon}</div>
+    <div className="bg-white border border-slate-200 rounded-xl p-4 flex items-start gap-3 shadow-sm">
+      <div className="p-2 rounded-lg bg-gradient-to-br from-slate-100 to-slate-50 text-slate-600">{icon}</div>
       <div>
-        <div className="text-xs text-slate-500 font-medium">{label}</div>
-        <div className="text-xl font-bold text-slate-800">{value}</div>
+        <div className="text-xs text-slate-500 font-bold uppercase tracking-wider">{label}</div>
+        <div className="text-2xl font-extrabold text-slate-800">{value}</div>
         {sub && <div className="text-xs text-slate-400 mt-0.5">{sub}</div>}
       </div>
     </div>
   );
 }
 
-function RatingPicker({ title, scaleArr, value, onChange }) {
-  return (
-    <div className="mb-5">
-      <div className="text-sm font-semibold text-slate-700 mb-2">{title}</div>
-      <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${scaleArr.length}, minmax(0,1fr))` }}>
-        {scaleArr.map((s) => {
-          const c = COLOR_MAP[s.color];
-          const selected = value === s.val;
-          return (
-            <button
-              key={s.val}
-              type="button"
-              onClick={() => onChange(s.val)}
-              className={`text-left p-2.5 rounded-lg border-2 transition-all ${
-                selected ? `${c.chip} ${c.ring} ring-2 shadow-sm` : 'bg-white border-slate-200 hover:border-slate-300'
-              }`}
-              title={s.desc}
-            >
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-sm">{s.val}</span>
-                {selected && <CheckCircle2 size={15} />}
-              </div>
-              <div className="text-xs font-semibold leading-tight mt-0.5">{s.label}</div>
-            </button>
-          );
-        })}
-      </div>
-      {value && <div className="text-xs text-slate-500 mt-1.5 italic">{scaleMeta(scaleArr, value)?.desc}</div>}
-    </div>
-  );
-}
-
-function VotingForm({ fm, existingVote, onSubmit, onCancel }) {
-  const [l, setL] = useState(existingVote?.likelihood || null);
-  const [s, setS] = useState(existingVote?.severity || null);
-  const [d, setD] = useState(existingVote?.detection || null);
-  const canSubmit = l && s && d;
-
-  return (
-    <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-2xl max-w-2xl w-full overflow-y-auto shadow-2xl" style={{ maxHeight: '90vh' }}>
-        <div className="p-5 border-b border-slate-100 sticky top-0 bg-white rounded-t-2xl">
-          <div className="flex items-center gap-2">
-            <Badge color="blue">FM {fm.no}</Badge>
-            {fm.category && <Badge color="lime">{fm.category}</Badge>}
-          </div>
-          <h3 className="text-lg font-bold text-slate-800 mt-2">{fm.title || '(Tanpa judul)'}</h3>
-        </div>
-        <div className="p-5 space-y-3">
-          {fm.mechanism && (
-            <div className="text-sm text-slate-600"><span className="font-semibold text-slate-700">Trigger / Mekanisme: </span>{fm.mechanism}</div>
-          )}
-          {fm.effect && (
-            <div className="text-sm text-slate-600"><span className="font-semibold text-slate-700">Potensi Efek: </span>{fm.effect}</div>
-          )}
-          {fm.detectionMonitoring && (
-            <div className="text-sm text-slate-600"><span className="font-semibold text-slate-700">Deteksi / Monitoring saat ini: </span>{fm.detectionMonitoring}</div>
-          )}
-          {fm.intervention && (
-            <div className="text-sm text-slate-600"><span className="font-semibold text-slate-700">Kontrol / Mitigasi: </span>{fm.intervention}</div>
-          )}
-          {fm.notes && (
-            <div className="text-sm bg-amber-50 border border-amber-200 rounded-lg p-2.5 text-amber-800">
-              <span className="font-semibold">Catatan PFMA: </span>{fm.notes}
-            </div>
-          )}
-
-          <div className="pt-2">
-            <RatingPicker title="1. Likelihood — kemungkinan terjadinya failure mode" scaleArr={LIKELIHOOD_SCALE} value={l} onChange={setL} />
-            <RatingPicker title="2. Severity / Consequence — dampak jika terjadi" scaleArr={SEVERITY_SCALE} value={s} onChange={setS} />
-            <RatingPicker title="3. Detection — efektivitas kontrol/monitoring saat ini" scaleArr={DETECTION_SCALE} value={d} onChange={setD} />
-          </div>
-        </div>
-        <div className="p-4 border-t border-slate-100 flex justify-end gap-2 sticky bottom-0 bg-white rounded-b-2xl">
-          <button onClick={onCancel} className="px-4 py-2 rounded-lg text-slate-600 font-medium hover:bg-slate-100">Batal</button>
-          <button
-            disabled={!canSubmit}
-            onClick={() => onSubmit({ likelihood: l, severity: s, detection: d, ts: Date.now() })}
-            className={`px-5 py-2 rounded-lg font-semibold text-white ${canSubmit ? 'bg-teal-600 hover:bg-teal-700' : 'bg-slate-300 cursor-not-allowed'}`}
-          >
-            Kirim Penilaian
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function distFor(scaleArr, votesArr, field) {
-  return scaleArr.map((s) => ({
-    val: String(s.val),
-    label: s.label,
-    count: votesArr.filter((v) => v[field] === s.val).length,
-    color: COLOR_MAP[s.color].solid,
-  }));
-}
-
-function MiniBar({ data, height = 110 }) {
-  return (
-    <ResponsiveContainer width="100%" height={height}>
-      <BarChart data={data} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-        <XAxis dataKey="val" tick={{ fontSize: 11 }} axisLine={{ stroke: '#cbd5e1' }} tickLine={false} />
-        <YAxis allowDecimals={false} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} width={24} />
-        <Tooltip formatter={(v, n, p) => [`${v} suara`, p.payload.label]} labelFormatter={(l) => `Rating ${l}`} />
-        <Bar dataKey="count" radius={[4, 4, 0, 0]}>
-          {data.map((d, i) => (
-            <Cell key={i} fill={d.color} />
-          ))}
-        </Bar>
-      </BarChart>
-    </ResponsiveContainer>
-  );
-}
-
-function FMResultCard({ fm, votes }) {
-  const n = votes.length;
-  const avgL = weightedAvg(votes, 'likelihood');
-  const avgS = weightedAvg(votes, 'severity');
-  const avgD = weightedAvg(votes, 'detection');
-  const rL = roundRating(avgL, 5);
-  const rS = roundRating(avgS, 5);
-  const rD = roundRating(avgD, 4);
-  const rpn = rL && rS && rD ? rL * rS * rD : null;
-  const cat = rpn ? rpnCategory(rpn) : null;
-
-  return (
-    <div className="bg-white border border-slate-200 rounded-xl p-4">
-      <div className="flex items-start justify-between gap-3 flex-wrap">
-        <div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <Badge color="blue">FM {fm.no}</Badge>
-            {fm.category && <Badge color="lime">{fm.category}</Badge>}
-            <span className="text-xs text-slate-400">{n} respon</span>
-          </div>
-          <div className="font-semibold text-slate-800 mt-1">{fm.title || '(Tanpa judul)'}</div>
-        </div>
-        {rpn && (
-          <div className="text-right">
-            <div className="text-xs text-slate-400 font-medium">RPN</div>
-            <div className="text-2xl font-extrabold text-slate-800">{rpn}</div>
-            <Badge color={cat.color}>{cat.label}</Badge>
-          </div>
-        )}
-      </div>
-
-      {n === 0 ? (
-        <div className="text-sm text-slate-400 italic mt-3">Belum ada penilaian masuk.</div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
-          <div>
-            <div className="text-xs font-semibold text-slate-500 mb-1">Likelihood — rata² {avgL.toFixed(2)} → <b>{rL}</b></div>
-            <MiniBar data={distFor(LIKELIHOOD_SCALE, votes, 'likelihood')} />
-          </div>
-          <div>
-            <div className="text-xs font-semibold text-slate-500 mb-1">Severity — rata² {avgS.toFixed(2)} → <b>{rS}</b></div>
-            <MiniBar data={distFor(SEVERITY_SCALE, votes, 'severity')} />
-          </div>
-          <div>
-            <div className="text-xs font-semibold text-slate-500 mb-1">Detection — rata² {avgD.toFixed(2)} → <b>{rD}</b></div>
-            <MiniBar data={distFor(DETECTION_SCALE, votes, 'detection')} />
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ---------------------------------------------------------------------------
-// LANDING
+// LANDING PAGE
 // ---------------------------------------------------------------------------
 
-function Landing({ onPickFacilitator, onPickParticipant }) {
+function Landing({ onPickFacilitator, onPickParticipant, user }) {
+  const { lang } = useLang();
   return (
-    <div className="min-h-full flex items-center justify-center p-6">
+    <div className="min-h-[80vh] flex items-center justify-center p-6">
       <div className="max-w-3xl w-full">
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 text-teal-700 font-bold text-sm tracking-wide uppercase mb-2">
             <HardHat size={18} /> SGO Geotechnical Workshop Tools
           </div>
-          <h1 className="text-3xl font-extrabold text-slate-800">Preliminary FMEA (PFMA) — Live Workshop</h1>
-          <p className="text-slate-500 mt-2">Penilaian Likelihood, Severity, dan Detection secara kolaboratif untuk setiap failure mode.</p>
+          <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-800 leading-tight">
+            {t(lang, 'landing.title')}
+          </h1>
+          <p className="text-slate-500 mt-2 max-w-lg mx-auto">{t(lang, 'landing.subtitle')}</p>
+          {user && (
+            <div className="text-sm text-slate-400 mt-3">
+              {lang === 'id' ? 'Masuk sebagai' : 'Signed in as'} <span className="font-bold text-slate-600">{user.fullName || user.primaryEmailAddress?.emailAddress}</span>
+            </div>
+          )}
         </div>
         <div className="grid md:grid-cols-2 gap-4">
           <button
             onClick={onPickFacilitator}
-            className="text-left bg-white border-2 border-slate-200 hover:border-teal-400 rounded-2xl p-6 transition-all group"
+            className="text-left bg-white border-2 border-slate-200 hover:border-teal-400 rounded-2xl p-6 transition-all group shadow-sm hover:shadow-md"
           >
-            <div className="p-3 bg-slate-800 text-white rounded-xl inline-flex mb-3"><Settings size={22} /></div>
-            <div className="font-bold text-lg text-slate-800">Saya Fasilitator</div>
-            <div className="text-sm text-slate-500 mt-1">Buat sesi baru, import daftar failure mode, kontrol lock/unlock, dan lihat hasil live.</div>
-            <div className="text-teal-600 font-semibold text-sm mt-3 flex items-center gap-1 group-hover:gap-2 transition-all">Mulai <ChevronRight size={16} /></div>
+            <div className="p-3 bg-gradient-to-br from-slate-800 to-slate-700 text-white rounded-xl inline-flex mb-3 shadow-sm">
+              <Settings size={22} />
+            </div>
+            <div className="font-bold text-lg text-slate-800">{t(lang, 'landing.facilitator')}</div>
+            <div className="text-sm text-slate-500 mt-1">{t(lang, 'landing.facilitator_desc')}</div>
+            <div className="text-teal-600 font-bold text-sm mt-3 flex items-center gap-1 group-hover:gap-2 transition-all">
+              {t(lang, 'landing.start')} <ChevronRight size={16} />
+            </div>
           </button>
           <button
             onClick={onPickParticipant}
-            className="text-left bg-white border-2 border-slate-200 hover:border-teal-400 rounded-2xl p-6 transition-all group"
+            className="text-left bg-white border-2 border-slate-200 hover:border-teal-400 rounded-2xl p-6 transition-all group shadow-sm hover:shadow-md"
           >
-            <div className="p-3 bg-teal-600 text-white rounded-xl inline-flex mb-3"><UserPlus size={22} /></div>
-            <div className="font-bold text-lg text-slate-800">Saya Peserta Workshop</div>
-            <div className="text-sm text-slate-500 mt-1">Masuk pakai kode sesi dari fasilitator, pilih role, lalu mulai menilai failure mode.</div>
-            <div className="text-teal-600 font-semibold text-sm mt-3 flex items-center gap-1 group-hover:gap-2 transition-all">Gabung <ChevronRight size={16} /></div>
+            <div className="p-3 bg-gradient-to-br from-teal-600 to-emerald-500 text-white rounded-xl inline-flex mb-3 shadow-sm">
+              <Users size={22} />
+            </div>
+            <div className="font-bold text-lg text-slate-800">{t(lang, 'landing.participant')}</div>
+            <div className="text-sm text-slate-500 mt-1">{t(lang, 'landing.participant_desc')}</div>
+            <div className="text-teal-600 font-bold text-sm mt-3 flex items-center gap-1 group-hover:gap-2 transition-all">
+              {t(lang, 'landing.join')} <ChevronRight size={16} />
+            </div>
           </button>
         </div>
       </div>
@@ -386,84 +162,83 @@ function Landing({ onPickFacilitator, onPickParticipant }) {
 }
 
 // ---------------------------------------------------------------------------
-// FACILITATOR
+// FACILITATOR SETUP
 // ---------------------------------------------------------------------------
 
 function FacilitatorSetup({ onBack, onSessionReady }) {
+  const { lang } = useLang();
   const [name, setName] = useState('');
-  const [facilitator, setFacilitator] = useState('');
   const [existingCode, setExistingCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
 
   async function createSession() {
-    if (!name.trim()) { setErr('Nama sesi wajib diisi.'); return; }
-    setBusy(true);
-    setErr('');
+    if (!name.trim()) { setErr(lang === 'id' ? 'Nama sesi wajib diisi.' : 'Session name is required.'); return; }
+    setBusy(true); setErr('');
     try {
       const code = generateCode();
-      await api.createSession(name.trim(), facilitator.trim(), code);
-      // Fetch full session data
+      await api.createSession(name.trim(), '', code);
       const data = await api.getFullSession(code);
-      setBusy(false);
       onSessionReady(data.session);
     } catch (e) {
-      setBusy(false);
-      setErr(e.message || 'Gagal membuat sesi.');
+      setErr(e.message || 'Failed');
     }
+    setBusy(false);
   }
 
   async function loadSession() {
     const code = existingCode.trim().toUpperCase();
     if (!code) return;
-    setBusy(true);
-    setErr('');
+    setBusy(true); setErr('');
     try {
       const data = await api.getFullSession(code);
-      setBusy(false);
       onSessionReady(data.session);
     } catch (e) {
-      setBusy(false);
-      setErr('Kode sesi tidak ditemukan.');
+      setErr(lang === 'id' ? 'Kode sesi tidak ditemukan.' : 'Session code not found.');
     }
+    setBusy(false);
   }
 
   return (
     <div className="max-w-lg mx-auto p-6">
-      <button onClick={onBack} className="text-slate-500 flex items-center gap-1 text-sm mb-4 hover:text-slate-700"><ArrowLeft size={16} /> Kembali</button>
-      <h2 className="text-xl font-bold text-slate-800 mb-4">Buat Sesi Workshop Baru</h2>
-      <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-3">
+      <button onClick={onBack} className="text-slate-500 flex items-center gap-1 text-sm mb-4 hover:text-slate-700">
+        <ArrowLeft size={16} /> {t(lang, 'common.back')}
+      </button>
+      <h2 className="text-xl font-bold text-slate-800 mb-4">{t(lang, 'session.create')}</h2>
+      <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-3 shadow-sm">
         <div>
-          <label className="text-xs font-semibold text-slate-500">Nama Sesi / Proyek</label>
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="cth. PFMA Bypass TSF - Pani Gold Project"
-            className="w-full mt-1 px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 placeholder:text-slate-400" />
-        </div>
-        <div>
-          <label className="text-xs font-semibold text-slate-500">Nama Fasilitator (opsional)</label>
-          <input value={facilitator} onChange={(e) => setFacilitator(e.target.value)} placeholder="cth. Mirna"
-            className="w-full mt-1 px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 placeholder:text-slate-400" />
+          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">{t(lang, 'session.name')}</label>
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t(lang, 'session.name_placeholder')}
+            className="w-full mt-1 px-3 py-2.5 border border-slate-300 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-teal-400" />
         </div>
         {err && <div className="text-sm text-red-600 flex items-center gap-1"><AlertTriangle size={14} /> {err}</div>}
-        <button disabled={busy} onClick={createSession} className="w-full bg-teal-600 hover:bg-teal-700 text-white font-semibold py-2.5 rounded-lg">
-          {busy ? 'Membuat...' : 'Buat Sesi'}
+        <button disabled={busy} onClick={createSession}
+          className="w-full bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white font-bold py-2.5 rounded-xl shadow-sm transition-all">
+          {busy ? t(lang, 'common.creating') : t(lang, 'session.create_btn')}
         </button>
       </div>
 
-      <div className="text-center text-xs text-slate-400 my-4">— atau —</div>
+      <div className="text-center text-xs text-slate-400 my-4">{t(lang, 'session.or')}</div>
 
-      <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-3">
-        <label className="text-xs font-semibold text-slate-500">Lanjutkan sesi yang sudah ada (kode sesi)</label>
-        <input value={existingCode} onChange={(e) => setExistingCode(e.target.value.toUpperCase())} placeholder="cth. K7X9QM" maxLength={6}
-          className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm tracking-widest font-mono text-slate-900 placeholder:text-slate-400" />
-        <button disabled={busy} onClick={loadSession} className="w-full bg-slate-800 hover:bg-slate-900 text-white font-semibold py-2.5 rounded-lg">
-          Lanjutkan Sesi
+      <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-3 shadow-sm">
+        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">{t(lang, 'session.resume')}</label>
+        <input value={existingCode} onChange={(e) => setExistingCode(e.target.value.toUpperCase())} placeholder={t(lang, 'session.code_placeholder')} maxLength={6}
+          className="w-full px-3 py-2.5 border border-slate-300 rounded-xl text-lg tracking-widest font-mono text-center text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-teal-400" />
+        <button disabled={busy} onClick={loadSession}
+          className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-2.5 rounded-xl shadow-sm transition-all">
+          {t(lang, 'session.resume_btn')}
         </button>
       </div>
     </div>
   );
 }
 
+// ---------------------------------------------------------------------------
+// IMPORT TAB
+// ---------------------------------------------------------------------------
+
 function ImportTab({ session, onUpdateSession }) {
+  const { lang } = useLang();
   const [preview, setPreview] = useState(null);
   const [fileErr, setFileErr] = useState('');
   const [busy, setBusy] = useState(false);
@@ -481,10 +256,10 @@ function ImportTab({ session, onUpdateSession }) {
         const sheet = wb.Sheets[wb.SheetNames[0]];
         const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
         const parsed = rows.map(mapRowToFM).filter((fm) => fm.title || fm.category);
-        if (!parsed.length) { setFileErr('Tidak ada baris valid yang terbaca. Periksa header kolom Excel.'); return; }
+        if (!parsed.length) { setFileErr(lang === 'id' ? 'Tidak ada baris valid.' : 'No valid rows found.'); return; }
         setPreview(parsed);
-      } catch (e2) {
-        setFileErr('Gagal membaca file. Pastikan formatnya .xlsx.');
+      } catch {
+        setFileErr(lang === 'id' ? 'Gagal membaca file.' : 'Failed to read file.');
       }
     };
     reader.readAsArrayBuffer(file);
@@ -494,35 +269,30 @@ function ImportTab({ session, onUpdateSession }) {
     setBusy(true);
     try {
       await api.importFMs(session.code, preview);
-      // Refresh session data
       const data = await api.getFullSession(session.code);
       onUpdateSession(data.session);
       setPreview(null);
       if (fileRef.current) fileRef.current.value = '';
     } catch (e) {
-      setFileErr('Gagal mengimpor: ' + e.message);
+      setFileErr('Import failed: ' + e.message);
     }
     setBusy(false);
   }
 
   return (
     <div className="space-y-4">
-      <div className="bg-white border border-slate-200 rounded-xl p-5">
-        <div className="flex items-center gap-2 font-bold text-slate-800 mb-1"><FileSpreadsheet size={18} /> Import Daftar Failure Mode (.xlsx)</div>
-        <p className="text-sm text-slate-500 mb-3">
-          Kolom yang dikenali otomatis: FM No., Category, Potential Failure Mode, Main Trigger / Detailed Mechanism, Initiation,
-          Continuation, Progression, Potential Detection / Monitoring, Possible Intervention / Risk Controls, Potential Effect / Consequence,
-          PFMA Notes / Workshop Questions, Owner / Action.
-        </p>
+      <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+        <div className="flex items-center gap-2 font-bold text-slate-800 mb-1"><FileSpreadsheet size={18} /> {t(lang, 'import.title')}</div>
+        <p className="text-sm text-slate-500 mb-3">{t(lang, 'import.columns_desc')}</p>
         <input ref={fileRef} type="file" accept=".xlsx,.xls" onChange={handleFile}
-          className="block w-full text-sm text-slate-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-teal-50 file:text-teal-700 file:font-semibold hover:file:bg-teal-100" />
+          className="block w-full text-sm text-slate-600 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:bg-teal-50 file:text-teal-700 file:font-bold hover:file:bg-teal-100 file:transition-all" />
         {fileErr && <div className="text-sm text-red-600 mt-2 flex items-center gap-1"><AlertTriangle size={14} /> {fileErr}</div>}
       </div>
 
       {preview && (
-        <div className="bg-white border border-slate-200 rounded-xl p-5">
-          <div className="font-bold text-slate-800 mb-2">Preview — {preview.length} failure mode terbaca</div>
-          <div className="max-h-80 overflow-y-auto border border-slate-100 rounded-lg">
+        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+          <div className="font-bold text-slate-800 mb-2">{t(lang, 'import.preview')} — {preview.length} failure mode</div>
+          <div className="max-h-80 overflow-y-auto border border-slate-100 rounded-xl">
             <table className="w-full text-xs">
               <thead className="bg-slate-50 sticky top-0"><tr>
                 <th className="p-2 text-left">No</th><th className="p-2 text-left">Category</th><th className="p-2 text-left">Potential Failure Mode</th>
@@ -537,30 +307,35 @@ function ImportTab({ session, onUpdateSession }) {
             </table>
           </div>
           <div className="flex justify-end gap-2 mt-3">
-            <button onClick={() => setPreview(null)} className="px-4 py-2 text-slate-500 font-medium">Batal</button>
-            <button disabled={busy} onClick={confirmImport} className="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white font-semibold rounded-lg">
-              {busy ? 'Mengimpor...' : `Gunakan ${preview.length} Failure Mode Ini`}
+            <button onClick={() => setPreview(null)} className="px-4 py-2 text-slate-500 font-medium">{t(lang, 'assessment.cancel')}</button>
+            <button disabled={busy} onClick={confirmImport}
+              className="px-5 py-2 bg-gradient-to-r from-teal-600 to-emerald-600 text-white font-bold rounded-xl shadow-sm">
+              {busy ? '...' : `${t(lang, 'import.confirm')} (${preview.length})`}
             </button>
           </div>
         </div>
       )}
 
       {!preview && session.fmList.length > 0 && (
-        <div className="text-sm text-slate-500">Sesi ini sudah memiliki <b>{session.fmList.length}</b> failure mode. Import ulang untuk mengganti daftar.</div>
+        <div className="text-sm text-slate-500">{t(lang, 'import.existing').replace('{n}', session.fmList.length)} (<b>{session.fmList.length}</b> FM)</div>
       )}
     </div>
   );
 }
 
+// ---------------------------------------------------------------------------
+// CONTROL TAB
+// ---------------------------------------------------------------------------
+
 function ControlTab({ session, onUpdateSession }) {
+  const { lang } = useLang();
+
   async function setStatus(fmNo, status) {
     try {
       await api.updateFMStatus(session.code, fmNo, status);
       const fmStatus = { ...session.fmStatus, [fmNo]: status };
       onUpdateSession({ ...session, fmStatus });
-    } catch (e) {
-      console.error('Failed to update status:', e);
-    }
+    } catch (e) { console.error(e); }
   }
 
   async function bulkSet(status) {
@@ -570,43 +345,41 @@ function ControlTab({ session, onUpdateSession }) {
       const fmStatus = {};
       session.fmList.forEach((fm) => (fmStatus[fm.no] = status));
       onUpdateSession({ ...session, fmStatus });
-    } catch (e) {
-      console.error('Failed to bulk update status:', e);
-    }
+    } catch (e) { console.error(e); }
   }
 
   if (!session.fmList.length) {
-    return <div className="text-slate-500 text-sm italic">Belum ada failure mode. Import daftar FM terlebih dahulu di tab &quot;Import FM&quot;.</div>;
+    return <div className="text-slate-500 text-sm italic">{t(lang, 'fm.no_fm')}</div>;
   }
 
   return (
     <div className="space-y-3">
       <div className="flex gap-2 mb-2">
-        <button onClick={() => bulkSet('open')} className="flex items-center gap-1 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-lg"><Unlock size={14} /> Buka Semua</button>
-        <button onClick={() => bulkSet('locked')} className="flex items-center gap-1 px-3 py-1.5 bg-slate-600 hover:bg-slate-700 text-white text-sm font-semibold rounded-lg"><Lock size={14} /> Kunci Semua</button>
+        <button onClick={() => bulkSet('open')} className="flex items-center gap-1 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-sm font-bold rounded-xl shadow-sm"><Unlock size={14} /> {t(lang, 'control.open_all')}</button>
+        <button onClick={() => bulkSet('locked')} className="flex items-center gap-1 px-3 py-1.5 bg-slate-600 hover:bg-slate-700 text-white text-sm font-bold rounded-xl shadow-sm"><Lock size={14} /> {t(lang, 'control.lock_all')}</button>
       </div>
-      <div className="bg-white border border-slate-200 rounded-xl divide-y divide-slate-100">
+      <div className="bg-white border border-slate-200 rounded-2xl divide-y divide-slate-100 shadow-sm">
         {session.fmList.map((fm) => {
           const status = session.fmStatus[fm.no] || 'locked';
           return (
             <div key={fm.no} className="flex items-center justify-between p-3 gap-3">
               <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <Badge color="blue">FM {fm.no}</Badge>
-                  {fm.category && <Badge color="lime">{fm.category}</Badge>}
-                  {status === 'open' && <Badge color="green">Terbuka</Badge>}
-                  {status === 'closed' && <Badge color="red">Ditutup</Badge>}
-                  {status === 'locked' && <Badge color="yellow">Terkunci</Badge>}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge color="#1e293b" bgColor="#f1f5f9">FM {fm.no}</Badge>
+                  {fm.category && <Badge color="#0d9488" bgColor="#f0fdfa">{fm.category}</Badge>}
+                  {status === 'open' && <Badge color="#16a34a" bgColor="#dcfce7">{t(lang, 'fm.open')}</Badge>}
+                  {status === 'closed' && <Badge color="#dc2626" bgColor="#fee2e2">{t(lang, 'fm.closed')}</Badge>}
+                  {status === 'locked' && <Badge color="#ca8a04" bgColor="#fef9c3">{t(lang, 'fm.locked')}</Badge>}
                 </div>
                 <div className="text-sm text-slate-700 truncate mt-1">{fm.title}</div>
               </div>
               <div className="flex gap-1.5 shrink-0">
-                <button onClick={() => setStatus(fm.no, 'open')} title="Buka untuk voting"
-                  className={`p-2 rounded-lg ${status === 'open' ? 'bg-green-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-green-100'}`}><Unlock size={15} /></button>
-                <button onClick={() => setStatus(fm.no, 'locked')} title="Kunci sementara"
-                  className={`p-2 rounded-lg ${status === 'locked' ? 'bg-yellow-500 text-white' : 'bg-slate-100 text-slate-500 hover:bg-yellow-100'}`}><Lock size={15} /></button>
-                <button onClick={() => setStatus(fm.no, 'closed')} title="Tutup permanen (kunci hasil final)"
-                  className={`px-2.5 rounded-lg text-xs font-semibold ${status === 'closed' ? 'bg-red-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-red-100'}`}>Final</button>
+                <button onClick={() => setStatus(fm.no, 'open')} title="Open"
+                  className={`p-2 rounded-xl transition-all ${status === 'open' ? 'bg-green-600 text-white shadow-sm' : 'bg-slate-100 text-slate-500 hover:bg-green-100'}`}><Unlock size={15} /></button>
+                <button onClick={() => setStatus(fm.no, 'locked')} title="Lock"
+                  className={`p-2 rounded-xl transition-all ${status === 'locked' ? 'bg-yellow-500 text-white shadow-sm' : 'bg-slate-100 text-slate-500 hover:bg-yellow-100'}`}><Lock size={15} /></button>
+                <button onClick={() => setStatus(fm.no, 'closed')} title="Close"
+                  className={`px-2.5 rounded-xl text-xs font-bold transition-all ${status === 'closed' ? 'bg-red-600 text-white shadow-sm' : 'bg-slate-100 text-slate-500 hover:bg-red-100'}`}>Final</button>
               </div>
             </div>
           );
@@ -616,375 +389,547 @@ function ControlTab({ session, onUpdateSession }) {
   );
 }
 
-function ResultsTab({ session, participants }) {
-  const sorted = [...session.fmList].map((fm) => {
-    const votes = participants.map((p) => {
-      const v = p.votes?.[fm.no];
-      if (!v) return null;
-      return { ...v, experience: p.experience || 'beginner' };
-    }).filter(Boolean);
-    const n = votes.length;
-    const avgL = weightedAvg(votes, 'likelihood');
-    const avgS = weightedAvg(votes, 'severity');
-    const avgD = weightedAvg(votes, 'detection');
-    const rL = roundRating(avgL, 5), rS = roundRating(avgS, 5), rD = roundRating(avgD, 4);
-    const rpn = rL && rS && rD ? rL * rS * rD : -1;
-    return { fm, votes, rpn };
-  }).sort((a, b) => b.rpn - a.rpn);
+// ---------------------------------------------------------------------------
+// UPLOAD TAB
+// ---------------------------------------------------------------------------
 
-  const top = sorted.filter((x) => x.rpn > 0)[0];
-  const totalVotesCast = participants.reduce((a, p) => a + Object.keys(p.votes || {}).length, 0);
+function UploadTab({ session }) {
+  const { lang } = useLang();
+  const [busy, setBusy] = useState(false);
+  const [docInfo, setDocInfo] = useState(null);
+  const [err, setErr] = useState('');
+  const fileRef = useRef(null);
+
+  useEffect(() => {
+    api.getDocumentInfo(session.code).then(setDocInfo).catch(() => {});
+  }, [session.code]);
+
+  async function handleUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    setBusy(true); setErr('');
+    try {
+      await api.uploadDocument(session.code, file, file.name.replace('.pdf', ''));
+      const info = await api.getDocumentInfo(session.code);
+      setDocInfo(info);
+    } catch (e) {
+      setErr(e.message);
+    }
+    setBusy(false);
+    if (fileRef.current) fileRef.current.value = '';
+  }
+
+  return (
+    <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+      <div className="flex items-center gap-2 font-bold text-slate-800 mb-3"><Upload size={18} /> {t(lang, 'upload.title')}</div>
+      {docInfo && (
+        <div className="bg-teal-50 border border-teal-200 rounded-xl p-3 mb-3 text-sm text-teal-800">
+          <b>{docInfo.title}</b> (v{docInfo.version}) — {Math.round((docInfo.fileSize || 0) / 1024)} KB
+          <br />
+          <a href={api.getDocumentDownloadUrl(session.code)} download className="text-teal-600 underline font-bold">{t(lang, 'guideline.download_material')}</a>
+        </div>
+      )}
+      <input ref={fileRef} type="file" accept=".pdf" onChange={handleUpload}
+        className="block w-full text-sm text-slate-600 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:bg-teal-50 file:text-teal-700 file:font-bold hover:file:bg-teal-100" />
+      {busy && <div className="text-sm text-slate-500 mt-2">{t(lang, 'common.saving')}</div>}
+      {err && <div className="text-sm text-red-600 mt-2">{err}</div>}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// RESULTS TAB (shared between facilitator and participant)
+// ---------------------------------------------------------------------------
+
+function ResultsTab({ session, members, lang }) {
+  const sorted = [...session.fmList].map((fm) => {
+    const assessments = (members || []).map((m) => {
+      const d = m.drafts?.[fm.no];
+      if (!d || !d.riskLikelihood) return null;
+      return { ...d, experience: m.experience_level || m.experienceLevel || 'beginner' };
+    }).filter(Boolean);
+    const n = assessments.length;
+    const avgRL = weightedAvg(assessments, 'riskLikelihood', 'experience');
+    const avgNC = weightedAvg(assessments, 'negativeConsequence', 'experience');
+    const rRL = roundRating(avgRL, 5);
+    const rNC = roundRating(avgNC, 5);
+    const riskCell = rRL && rNC ? getRiskCell(rRL, rNC) : null;
+
+    const avgOL = weightedAvg(assessments, 'oppLikelihood', 'experience');
+    const avgPC = weightedAvg(assessments, 'positiveConsequence', 'experience');
+    const rOL = roundRating(avgOL, 5);
+    const rPC = roundRating(avgPC, 5);
+    const oppCell = rOL && rPC ? getOpportunityCell(rOL, rPC) : null;
+
+    return { fm, n, riskCell, oppCell, riskScore: riskCell?.score || 0 };
+  }).sort((a, b) => b.riskScore - a.riskScore);
+
+  const top = sorted.find((x) => x.riskScore > 0);
+  const totalAssessments = (members || []).reduce((a, m) => a + Object.keys(m.drafts || {}).length, 0);
 
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatCard icon={<Users size={18} />} label="Peserta Bergabung" value={participants.length} />
-        <StatCard icon={<ClipboardList size={18} />} label="Total Failure Mode" value={session.fmList.length} />
-        <StatCard icon={<CheckCircle2 size={18} />} label="Total Penilaian Masuk" value={totalVotesCast} />
-        <StatCard icon={<Trophy size={18} />} label="RPN Tertinggi" value={top ? top.rpn : '-'} sub={top ? `FM ${top.fm.no}` : ''} />
+        <StatCard icon={<Users size={18} />} label={t(lang, 'results.participants')} value={(members || []).length} />
+        <StatCard icon={<ClipboardList size={18} />} label={t(lang, 'results.total_fm')} value={session.fmList.length} />
+        <StatCard icon={<CheckCircle2 size={18} />} label={t(lang, 'results.assessments')} value={totalAssessments} />
+        <StatCard icon={<Trophy size={18} />} label={t(lang, 'results.highest_risk')} value={top ? top.riskScore : '-'} sub={top ? `FM ${top.fm.no}` : ''} />
       </div>
 
       <div className="space-y-3">
-        {sorted.map(({ fm, votes }) => <FMResultCard key={fm.no} fm={fm} votes={votes} />)}
+        {sorted.map(({ fm, n, riskCell, oppCell }) => (
+          <div key={fm.no} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+            <div className="flex items-start justify-between gap-3 flex-wrap">
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge color="#1e293b" bgColor="#f1f5f9">FM {fm.no}</Badge>
+                  {fm.category && <Badge color="#0d9488" bgColor="#f0fdfa">{fm.category}</Badge>}
+                  <span className="text-xs text-slate-400">{n} {t(lang, 'results.responses')}</span>
+                </div>
+                <div className="font-bold text-slate-800 mt-1">{fm.title || '(Untitled)'}</div>
+              </div>
+              <div className="flex gap-2 shrink-0">
+                {riskCell && (
+                  <div className="text-center px-3 py-1.5 rounded-xl" style={{ backgroundColor: riskCell.bgColor, color: riskCell.textColor }}>
+                    <div className="text-[10px] font-bold uppercase flex items-center gap-1"><Shield size={10} /> Risk</div>
+                    <div className="text-lg font-extrabold leading-tight">{riskCell.score}</div>
+                    <div className="text-[10px] font-bold">{riskCell.level}</div>
+                  </div>
+                )}
+                {oppCell && (
+                  <div className="text-center px-3 py-1.5 rounded-xl" style={{ backgroundColor: oppCell.bgColor, color: oppCell.textColor }}>
+                    <div className="text-[10px] font-bold uppercase flex items-center gap-1"><Sparkles size={10} /> Opp</div>
+                    <div className="text-lg font-extrabold leading-tight">{oppCell.score}</div>
+                    <div className="text-[10px] font-bold">{oppCell.level}</div>
+                  </div>
+                )}
+              </div>
+            </div>
+            {n === 0 && <div className="text-sm text-slate-400 italic mt-2">{t(lang, 'results.no_data')}</div>}
+          </div>
+        ))}
       </div>
     </div>
   );
 }
 
-function ExportTab({ session, participants }) {
-  function buildRows() {
-    return session.fmList.map((fm) => {
-      const votes = participants.map((p) => {
-        const v = p.votes?.[fm.no];
-        if (!v) return null;
-        return { ...v, experience: p.experience || 'beginner' };
-      }).filter(Boolean);
-      const n = votes.length;
-      const avgL = weightedAvg(votes, 'likelihood');
-      const avgS = weightedAvg(votes, 'severity');
-      const avgD = weightedAvg(votes, 'detection');
-      const rL = roundRating(avgL, 5), rS = roundRating(avgS, 5), rD = roundRating(avgD, 4);
-      const rpn = rL && rS && rD ? rL * rS * rD : '';
-      const cat = rpn ? rpnCategory(rpn).label : '';
-      return {
-        'FM No.': fm.no, 'Category': fm.category, 'Potential Failure Mode': fm.title,
-        'Main Trigger / Detailed Mechanism': fm.mechanism, 'Initiation': fm.initiation, 'Continuation': fm.continuation,
-        'Progression': fm.progression, 'Potential Detection / Monitoring': fm.detectionMonitoring,
-        'Possible Intervention / Risk Controls': fm.intervention, 'Potential Effect / Consequence': fm.effect,
-        'PFMA Notes / Workshop Questions': fm.notes,
-        'Likelihood (Workshop)': rL || '', 'Likelihood Avg': avgL ? avgL.toFixed(2) : '',
-        'Consequence (Workshop)': rS || '', 'Consequence Avg': avgS ? avgS.toFixed(2) : '',
-        'Detection (Workshop)': rD || '', 'Detection Avg': avgD ? avgD.toFixed(2) : '',
-        'Risk Priority (Workshop)': rpn, 'Risk Priority Category': cat,
-        'Jumlah Responden': n, 'Owner / Action': fm.ownerAction,
-      };
-    });
-  }
+// ---------------------------------------------------------------------------
+// EXPORT TAB
+// ---------------------------------------------------------------------------
 
-  function buildRawVotes() {
-    const rows = [];
-    participants.forEach((p) => {
-      Object.entries(p.votes || {}).forEach(([fmNo, v]) => {
-        rows.push({
-          'FM No.': fmNo, 'Role Peserta': p.role, 'Experience': p.experience || 'beginner',
-          'Nama Peserta': p.name || '(anonim)',
-          'Likelihood': v.likelihood, 'Severity': v.severity, 'Detection': v.detection,
-          'Waktu': new Date(v.ts).toLocaleString('id-ID'),
-        });
-      });
-    });
-    return rows;
-  }
+function ExportTab({ session, members }) {
+  const { lang } = useLang();
 
   function exportExcel() {
+    const rows = session.fmList.map((fm) => {
+      const assessments = (members || []).map((m) => {
+        const d = m.drafts?.[fm.no];
+        if (!d) return null;
+        return { ...d, experience: m.experience_level || 'beginner' };
+      }).filter(Boolean);
+      const avgRL = weightedAvg(assessments, 'riskLikelihood'); const rRL = roundRating(avgRL, 5);
+      const avgNC = weightedAvg(assessments, 'negativeConsequence'); const rNC = roundRating(avgNC, 5);
+      const riskCell = rRL && rNC ? getRiskCell(rRL, rNC) : null;
+      const avgOL = weightedAvg(assessments, 'oppLikelihood'); const rOL = roundRating(avgOL, 5);
+      const avgPC = weightedAvg(assessments, 'positiveConsequence'); const rPC = roundRating(avgPC, 5);
+      const oppCell = rOL && rPC ? getOpportunityCell(rOL, rPC) : null;
+
+      return {
+        'FM No.': fm.no, 'Category': fm.category, 'Potential Failure Mode': fm.title,
+        'Risk Likelihood': rRL || '', 'Neg. Consequence': rNC || '',
+        'Risk Score': riskCell?.score || '', 'Risk Level': riskCell?.level || '',
+        'Opp Likelihood': rOL || '', 'Pos. Consequence': rPC || '',
+        'Opp Score': oppCell?.score || '', 'Opp Level': oppCell?.level || '',
+        'Respondents': assessments.length,
+      };
+    });
+
     const wb = XLSX.utils.book_new();
-    const ws1 = XLSX.utils.json_to_sheet(buildRows());
-    XLSX.utils.book_append_sheet(wb, ws1, 'FMEA Summary');
-    const ws2 = XLSX.utils.json_to_sheet(buildRawVotes());
-    XLSX.utils.book_append_sheet(wb, ws2, 'Raw Votes');
-    XLSX.writeFile(wb, `PFMA_${slug(session.name)}_${session.code}.xlsx`);
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'FMEA Summary');
+    XLSX.writeFile(wb, `FMEA_${slug(session.name)}_${session.code}.xlsx`);
   }
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl p-6 text-center">
+    <div className="bg-white border border-slate-200 rounded-2xl p-6 text-center shadow-sm">
       <FileSpreadsheet size={40} className="mx-auto text-teal-600 mb-3" />
-      <div className="font-bold text-slate-800 text-lg">Export Hasil Workshop</div>
-      <p className="text-sm text-slate-500 mt-1 max-w-md mx-auto">
-        File Excel berisi sheet &quot;FMEA Summary&quot; (rata-rata, rating final, RPN, kategori) dan &quot;Raw Votes&quot; (data mentah tiap suara per peserta).
-      </p>
-      <button onClick={exportExcel} className="mt-4 inline-flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white font-semibold px-6 py-3 rounded-lg">
-        <Download size={18} /> Download Excel (.xlsx)
+      <div className="font-bold text-slate-800 text-lg">{t(lang, 'export.title')}</div>
+      <button onClick={exportExcel} className="mt-4 inline-flex items-center gap-2 bg-gradient-to-r from-teal-600 to-emerald-600 text-white font-bold px-6 py-3 rounded-xl shadow-sm hover:from-teal-700 hover:to-emerald-700 transition-all">
+        <Download size={18} /> {t(lang, 'export.download')}
       </button>
-      <div className="mt-3">
-        <button onClick={() => window.print()} className="inline-flex items-center gap-2 text-slate-500 hover:text-slate-700 text-sm font-medium">
-          <Printer size={15} /> Cetak / Simpan sebagai PDF halaman ini
-        </button>
-      </div>
     </div>
   );
 }
 
+// ---------------------------------------------------------------------------
+// FACILITATOR DASHBOARD
+// ---------------------------------------------------------------------------
+
 function FacilitatorDashboard({ session, onUpdateSession, onExit }) {
+  const { lang } = useLang();
   const [tab, setTab] = useState('import');
-  const [participants, setParticipants] = useState([]);
+  const [members, setMembers] = useState([]);
   const [copied, setCopied] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
       const data = await api.getFullSession(session.code);
       onUpdateSession(data.session);
-      setParticipants(data.participants);
-    } catch (e) {
-      console.error('Refresh error:', e);
-    }
+      try {
+        const memberData = await api.getMembership(session.code);
+        if (memberData.members) {
+          setMembers(memberData.members.map((m) => ({ ...m, drafts: {} })));
+        }
+      } catch { /* membership may not exist yet */ }
+    } catch (e) { console.error(e); }
   }, [session.code]); // eslint-disable-line
 
   useEffect(() => {
     refresh();
-    const t = setInterval(refresh, 5000);
+    const t = setInterval(refresh, 6000);
     return () => clearInterval(t);
   }, [refresh]);
 
   function copyCode() {
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(session.code).catch(() => {});
-    } else {
-      const ta = document.createElement('textarea');
-      ta.value = session.code; document.body.appendChild(ta); ta.select();
-      try { document.execCommand('copy'); } catch (e) {}
-      document.body.removeChild(ta);
-    }
+    navigator.clipboard?.writeText(session.code).catch(() => {});
     setCopied(true); setTimeout(() => setCopied(false), 1500);
   }
 
   const tabs = [
-    { id: 'import', label: 'Import FM', icon: <Upload size={15} /> },
-    { id: 'control', label: 'Kontrol Sesi', icon: <Lock size={15} /> },
-    { id: 'results', label: 'Hasil Live', icon: <BarChart3 size={15} /> },
-    { id: 'export', label: 'Export', icon: <Download size={15} /> },
+    { id: 'import', label: t(lang, 'tab.import'), icon: <Upload size={15} /> },
+    { id: 'upload', label: 'PDF', icon: <BookOpen size={15} /> },
+    { id: 'control', label: t(lang, 'tab.control'), icon: <Lock size={15} /> },
+    { id: 'results', label: t(lang, 'tab.results'), icon: <BarChart3 size={15} /> },
+    { id: 'export', label: t(lang, 'tab.export'), icon: <Download size={15} /> },
   ];
 
   return (
     <div className="max-w-5xl mx-auto p-5">
       <div className="flex items-center justify-between flex-wrap gap-3 mb-5">
         <div>
-          <button onClick={onExit} className="text-slate-400 flex items-center gap-1 text-xs mb-1 hover:text-slate-600"><ArrowLeft size={13} /> Keluar</button>
+          <button onClick={onExit} className="text-slate-400 flex items-center gap-1 text-xs mb-1 hover:text-slate-600"><ArrowLeft size={13} /> {t(lang, 'session.exit')}</button>
           <h2 className="text-xl font-bold text-slate-800">{session.name}</h2>
         </div>
-        <button onClick={copyCode} className="flex items-center gap-2 bg-slate-800 text-white px-4 py-2.5 rounded-xl font-mono text-lg tracking-widest">
-          {session.code} {copied ? <CheckCircle2 size={18} /> : <Copy size={16} />}
+        <button onClick={copyCode} className="flex items-center gap-2 bg-slate-800 text-white px-4 py-2.5 rounded-xl font-mono text-lg tracking-widest shadow-sm hover:bg-slate-900 transition-all">
+          {session.code} {copied ? <CheckCircle2 size={18} className="text-green-400" /> : <Copy size={16} />}
         </button>
       </div>
 
       <div className="flex gap-1 mb-4 bg-slate-100 p-1 rounded-xl w-fit flex-wrap">
-        {tabs.map((t) => (
-          <button key={t.id} onClick={() => setTab(t.id)}
-            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-sm font-semibold ${tab === t.id ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}>
-            {t.icon} {t.label}
+        {tabs.map((tb) => (
+          <button key={tb.id} onClick={() => setTab(tb.id)}
+            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-bold transition-all ${tab === tb.id ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}>
+            {tb.icon} {tb.label}
           </button>
         ))}
-        <button onClick={refresh} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-slate-400 hover:text-slate-600"><RefreshCw size={14} /></button>
+        <button onClick={refresh} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm text-slate-400 hover:text-slate-600"><RefreshCw size={14} /></button>
       </div>
 
       {tab === 'import' && <ImportTab session={session} onUpdateSession={onUpdateSession} />}
+      {tab === 'upload' && <UploadTab session={session} />}
       {tab === 'control' && <ControlTab session={session} onUpdateSession={onUpdateSession} />}
-      {tab === 'results' && <ResultsTab session={session} participants={participants} />}
-      {tab === 'export' && <ExportTab session={session} participants={participants} />}
+      {tab === 'results' && <ResultsTab session={session} members={members} lang={lang} />}
+      {tab === 'export' && <ExportTab session={session} members={members} />}
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// PARTICIPANT
+// PARTICIPANT JOIN
 // ---------------------------------------------------------------------------
 
 function ParticipantJoin({ onBack, onJoined }) {
+  const { lang } = useLang();
   const [code, setCode] = useState('');
-  const [role, setRole] = useState('');
+  const [roleKey, setRoleKey] = useState('');
   const [experience, setExperience] = useState('');
-  const [name, setName] = useState('');
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
 
   async function join() {
     const c = code.trim().toUpperCase();
-    if (!c) { setErr('Masukkan kode sesi.'); return; }
-    if (!role) { setErr('Pilih role Anda.'); return; }
-    if (!experience) { setErr('Pilih level pengalaman Anda.'); return; }
-    setBusy(true);
-    setErr('');
+    if (!c) { setErr(lang === 'id' ? 'Masukkan kode sesi.' : 'Enter session code.'); return; }
+    if (!roleKey) { setErr(lang === 'id' ? 'Pilih role Anda.' : 'Select your role.'); return; }
+    if (!experience) { setErr(lang === 'id' ? 'Pilih level pengalaman.' : 'Select experience level.'); return; }
+    setBusy(true); setErr('');
     try {
-      // Verify session exists
       const sessionData = await api.getFullSession(c);
-
-      // Generate participant key
-      const participantKey = name.trim()
-        ? `${slug(role)}__${slug(name)}`
-        : `anon-${Math.random().toString(36).slice(2, 9)}`;
-
-      // Join session
-      await api.joinSession(c, participantKey, role, name.trim(), experience);
-
-      setBusy(false);
-      onJoined({
-        session: sessionData.session,
-        participant: {
-          id: participantKey,
-          role,
-          experience,
-          name: name.trim(),
-          votes: {},
-        },
-      });
+      await api.joinMembership(c, { professionalRoleKey: roleKey, experienceLevel: experience });
+      onJoined({ session: sessionData.session });
     } catch (e) {
-      setBusy(false);
-      setErr('Kode sesi tidak ditemukan. Cek kembali dengan fasilitator.');
+      setErr(lang === 'id' ? 'Kode sesi tidak ditemukan.' : 'Session code not found.');
     }
+    setBusy(false);
   }
 
   return (
     <div className="max-w-md mx-auto p-6">
-      <button onClick={onBack} className="text-slate-500 flex items-center gap-1 text-sm mb-4 hover:text-slate-700"><ArrowLeft size={16} /> Kembali</button>
-      <h2 className="text-xl font-bold text-slate-800 mb-4">Gabung Sesi Workshop</h2>
-      <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-3.5">
+      <button onClick={onBack} className="text-slate-500 flex items-center gap-1 text-sm mb-4 hover:text-slate-700"><ArrowLeft size={16} /> {t(lang, 'common.back')}</button>
+      <h2 className="text-xl font-bold text-slate-800 mb-4">{t(lang, 'session.join')}</h2>
+      <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4 shadow-sm">
         <div>
-          <label className="text-xs font-semibold text-slate-500">Kode Sesi</label>
-          <input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} maxLength={6} placeholder="cth. K7X9QM"
-            className="w-full mt-1 px-3 py-2.5 border border-slate-300 rounded-lg text-lg tracking-widest font-mono text-center text-slate-900 placeholder:text-slate-400" />
+          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">{t(lang, 'session.code')}</label>
+          <input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} maxLength={6} placeholder={t(lang, 'session.code_placeholder')}
+            className="w-full mt-1 px-3 py-2.5 border border-slate-300 rounded-xl text-lg tracking-widest font-mono text-center text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-teal-400" />
         </div>
         <div>
-          <label className="text-xs font-semibold text-slate-500">Role / Background Anda</label>
-          <select value={role} onChange={(e) => setRole(e.target.value)} className="w-full mt-1 px-3 py-2.5 border border-slate-300 rounded-lg text-sm bg-white text-slate-900">
-            <option value="">-- Pilih Role --</option>
-            {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">{t(lang, 'profile.role')}</label>
+          <select value={roleKey} onChange={(e) => setRoleKey(e.target.value)}
+            className="w-full mt-1 px-3 py-2.5 border border-slate-300 rounded-xl text-sm bg-white text-slate-900 focus:ring-2 focus:ring-teal-400">
+            <option value="">{lang === 'id' ? '-- Pilih Role --' : '-- Select Role --'}</option>
+            {PROFESSIONAL_ROLES.map((r) => <option key={r.key} value={r.key}>{r.label[lang]}</option>)}
           </select>
         </div>
         <div>
-          <label className="text-xs font-semibold text-slate-500">Experience in FMEA / Dam Engineering</label>
-          <select value={experience} onChange={(e) => setExperience(e.target.value)} className="w-full mt-1 px-3 py-2.5 border border-slate-300 rounded-lg text-sm bg-white text-slate-900">
-            <option value="">-- Pilih Level Pengalaman --</option>
-            <option value="beginner">Beginner</option>
-            <option value="experienced">Experienced</option>
-            <option value="expert">Expert</option>
+          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">{t(lang, 'profile.experience')}</label>
+          <select value={experience} onChange={(e) => setExperience(e.target.value)}
+            className="w-full mt-1 px-3 py-2.5 border border-slate-300 rounded-xl text-sm bg-white text-slate-900 focus:ring-2 focus:ring-teal-400">
+            <option value="">{lang === 'id' ? '-- Pilih Pengalaman --' : '-- Select Experience --'}</option>
+            {EXPERIENCE_LEVELS.map((exp) => <option key={exp.key} value={exp.key}>{exp.label[lang]} — {exp.description[lang]}</option>)}
           </select>
-        </div>
-        <div>
-          <label className="text-xs font-semibold text-slate-500">Nama (opsional, membantu jika Anda perlu reload halaman)</label>
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="cth. Budi"
-            className="w-full mt-1 px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 placeholder:text-slate-400" />
         </div>
         {err && <div className="text-sm text-red-600 flex items-center gap-1"><AlertTriangle size={14} /> {err}</div>}
-        <button disabled={busy} onClick={join} className="w-full bg-teal-600 hover:bg-teal-700 text-white font-semibold py-2.5 rounded-lg flex items-center justify-center gap-2">
-          <LogIn size={17} /> {busy ? 'Menghubungkan...' : 'Gabung Sesi'}
+        <button disabled={busy} onClick={join}
+          className="w-full bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white font-bold py-2.5 rounded-xl flex items-center justify-center gap-2 shadow-sm transition-all">
+          <Users size={17} /> {busy ? t(lang, 'common.connecting') : t(lang, 'session.join_btn')}
         </button>
       </div>
     </div>
   );
 }
 
-function ParticipantMain({ initialSession, participant, onExit }) {
+// ---------------------------------------------------------------------------
+// PARTICIPANT MAIN WORKSPACE
+// ---------------------------------------------------------------------------
+
+function ParticipantMain({ initialSession, onExit }) {
+  const { lang } = useLang();
   const [session, setSession] = useState(initialSession);
-  const [participants, setParticipants] = useState([]);
+  const [myDrafts, setMyDrafts] = useState({});
+  const [isSubmitted, setIsSubmitted] = useState(false);
   const [votingFM, setVotingFM] = useState(null);
   const [tab, setTab] = useState('list');
-  const [myVotes, setMyVotes] = useState(participant.votes || {});
+  const [members, setMembers] = useState([]);
+  const [hasDocument, setHasDocument] = useState(false);
+  const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
       const data = await api.getFullSession(session.code);
       setSession(data.session);
-      setParticipants(data.participants);
-
-      // Update my votes from server data
-      const me = data.participants.find((p) => p.id === participant.id);
-      if (me) setMyVotes(me.votes || {});
-    } catch (e) {
-      console.error('Refresh error:', e);
-    }
-  }, [session.code, participant.id]);
+      try {
+        const draftData = await api.getAssessmentDrafts(session.code);
+        setMyDrafts(draftData.drafts || {});
+      } catch { /* first time */ }
+      try {
+        const subData = await api.getSubmissionStatus(session.code);
+        setIsSubmitted(subData.isSubmitted);
+      } catch {}
+      try {
+        await api.getDocumentInfo(session.code);
+        setHasDocument(true);
+      } catch { setHasDocument(false); }
+      try {
+        await api.getMembership(session.code);
+        setMembers([]);
+      } catch {}
+    } catch (e) { console.error(e); }
+  }, [session.code]);
 
   useEffect(() => {
     refresh();
-    const t = setInterval(refresh, 5000);
+    const t = setInterval(refresh, 6000);
     return () => clearInterval(t);
   }, [refresh]);
 
-  async function handleSubmitVote(fm, vote) {
-    try {
-      await api.submitVote(session.code, participant.id, fm.no, vote.likelihood, vote.severity, vote.detection);
-      const updatedVotes = { ...myVotes, [fm.no]: vote };
-      setMyVotes(updatedVotes);
-      setVotingFM(null);
-      refresh();
-    } catch (e) {
-      console.error('Vote error:', e);
-    }
+  async function handleSaveDraft(draft) {
+    await api.saveAssessmentDraft(session.code, draft);
+    setMyDrafts((prev) => ({ ...prev, [draft.fmNo]: draft }));
+    setVotingFM(null);
   }
 
-  const openable = (fm) => (session.fmStatus[fm.no] || 'locked') === 'open';
+  async function handleSubmit() {
+    setSubmitting(true);
+    try {
+      await api.submitAssessment(session.code);
+      setIsSubmitted(true);
+      setShowSubmitConfirm(false);
+    } catch (e) {
+      alert(e.message);
+    }
+    setSubmitting(false);
+  }
+
+  const openFms = session.fmList.filter((fm) => (session.fmStatus[fm.no] || 'locked') === 'open');
+  const allComplete = openFms.every((fm) => {
+    const d = myDrafts[fm.no];
+    return d && d.riskLikelihood && d.negativeConsequence && d.oppLikelihood && d.positiveConsequence;
+  });
+  const canSubmit = openFms.length > 0 && allComplete && !isSubmitted;
+
+  const tabs = [
+    { id: 'list', label: t(lang, 'tab.fm_list'), icon: <ClipboardList size={15} /> },
+    { id: 'results', label: t(lang, 'tab.results'), icon: <BarChart3 size={15} /> },
+    { id: 'guideline', label: t(lang, 'tab.guideline'), icon: <BookOpen size={15} /> },
+  ];
 
   return (
     <div className="max-w-3xl mx-auto p-5">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <button onClick={onExit} className="text-slate-400 flex items-center gap-1 text-xs mb-1 hover:text-slate-600"><ArrowLeft size={13} /> Keluar</button>
+          <button onClick={onExit} className="text-slate-400 flex items-center gap-1 text-xs mb-1 hover:text-slate-600"><ArrowLeft size={13} /> {t(lang, 'session.exit')}</button>
           <h2 className="text-lg font-bold text-slate-800">{session.name}</h2>
-          <div className="text-xs text-slate-400 flex items-center gap-1.5 flex-wrap">
-            <span>Role:</span> <b className="text-slate-600">{participant.role}</b>
-            {participant.experience && (
-              <Badge color={participant.experience === 'expert' ? 'blue' : participant.experience === 'experienced' ? 'green' : 'yellow'}>
-                {participant.experience === 'expert' ? 'Expert' : participant.experience === 'experienced' ? 'Experienced' : 'Beginner'}
-              </Badge>
-            )}
-            {participant.name ? <span>· {participant.name}</span> : null}
-          </div>
+          {isSubmitted && (
+            <div className="text-xs text-amber-600 font-bold flex items-center gap-1 mt-0.5">
+              <CheckCircle2 size={12} /> {t(lang, 'submit.locked')}
+            </div>
+          )}
         </div>
         <button onClick={refresh} className="p-2 text-slate-400 hover:text-slate-600"><RefreshCw size={16} /></button>
       </div>
 
-      <div className="flex gap-1 mb-4 bg-slate-100 p-1 rounded-xl w-fit">
-        <button onClick={() => setTab('list')} className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-sm font-semibold ${tab === 'list' ? 'bg-white shadow text-slate-800' : 'text-slate-500'}`}><ClipboardList size={15} /> Daftar FM</button>
-        <button onClick={() => setTab('results')} className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-sm font-semibold ${tab === 'results' ? 'bg-white shadow text-slate-800' : 'text-slate-500'}`}><BarChart3 size={15} /> Hasil Live</button>
+      <div className="flex gap-1 mb-4 bg-slate-100 p-1 rounded-xl w-fit flex-wrap">
+        {tabs.map((tb) => (
+          <button key={tb.id} onClick={() => setTab(tb.id)}
+            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-bold transition-all ${tab === tb.id ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500'}`}>
+            {tb.icon} {tb.label}
+          </button>
+        ))}
       </div>
 
       {tab === 'list' && (
-        <div className="space-y-2">
-          {session.fmList.length === 0 && <div className="text-slate-400 italic text-sm">Fasilitator belum mengimpor daftar failure mode.</div>}
+        <div className="space-y-3">
+          {session.fmList.length === 0 && <div className="text-slate-400 italic text-sm">{t(lang, 'fm.no_fm')}</div>}
           {session.fmList.map((fm) => {
             const status = session.fmStatus[fm.no] || 'locked';
-            const voted = !!myVotes[fm.no];
+            const draft = myDrafts[fm.no];
+            const hasRisk = draft?.riskLikelihood && draft?.negativeConsequence;
+            const hasOpp = draft?.oppLikelihood && draft?.positiveConsequence;
+            const complete = hasRisk && hasOpp;
+            const isOpen = status === 'open';
+
             return (
-              <div key={fm.no} className={`bg-white border rounded-xl p-3.5 flex items-center justify-between gap-3 ${status === 'open' ? 'border-teal-300' : 'border-slate-200'}`}>
+              <div key={fm.no} className={`bg-white border-2 rounded-2xl p-4 flex items-center justify-between gap-3 transition-all shadow-sm ${isOpen ? 'border-teal-300' : 'border-slate-200'}`}>
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <Badge color="blue">FM {fm.no}</Badge>
-                    {fm.category && <Badge color="lime">{fm.category}</Badge>}
-                    {status === 'locked' && <Badge color="yellow">Belum dibuka</Badge>}
-                    {status === 'closed' && <Badge color="red">Ditutup</Badge>}
-                    {voted && <Badge color="green"><CheckCircle2 size={11} /> Sudah dinilai</Badge>}
+                    <Badge color="#1e293b" bgColor="#f1f5f9">FM {fm.no}</Badge>
+                    {fm.category && <Badge color="#0d9488" bgColor="#f0fdfa">{fm.category}</Badge>}
+                    {status === 'locked' && <Badge color="#ca8a04" bgColor="#fef9c3">{t(lang, 'fm.not_opened')}</Badge>}
+                    {status === 'closed' && <Badge color="#dc2626" bgColor="#fee2e2">{t(lang, 'fm.closed')}</Badge>}
+                    {complete && <Badge color="#16a34a" bgColor="#dcfce7"><CheckCircle2 size={11} /> {t(lang, 'fm.assessed')}</Badge>}
+                    {isOpen && hasRisk && !hasOpp && <Badge color="#f97316" bgColor="#ffedd5">Risk ✓ / Opp ✗</Badge>}
+                    {isOpen && !hasRisk && hasOpp && <Badge color="#f97316" bgColor="#ffedd5">Risk ✗ / Opp ✓</Badge>}
                   </div>
                   <div className="text-sm text-slate-700 truncate mt-1">{fm.title}</div>
+                  {complete && (
+                    <div className="flex gap-2 mt-1.5">
+                      {getRiskCell(draft.riskLikelihood, draft.negativeConsequence) && (
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded"
+                          style={{ backgroundColor: getRiskCell(draft.riskLikelihood, draft.negativeConsequence).bgColor, color: getRiskCell(draft.riskLikelihood, draft.negativeConsequence).textColor }}>
+                          Risk: {getRiskCell(draft.riskLikelihood, draft.negativeConsequence).level} ({getRiskCell(draft.riskLikelihood, draft.negativeConsequence).score})
+                        </span>
+                      )}
+                      {getOpportunityCell(draft.oppLikelihood, draft.positiveConsequence) && (
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded"
+                          style={{ backgroundColor: getOpportunityCell(draft.oppLikelihood, draft.positiveConsequence).bgColor, color: getOpportunityCell(draft.oppLikelihood, draft.positiveConsequence).textColor }}>
+                          Opp: {getOpportunityCell(draft.oppLikelihood, draft.positiveConsequence).level} ({getOpportunityCell(draft.oppLikelihood, draft.positiveConsequence).score})
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <button
-                  disabled={!openable(fm)}
+                  disabled={!isOpen || isSubmitted}
                   onClick={() => setVotingFM(fm)}
-                  className={`shrink-0 px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-1.5 ${
-                    openable(fm) ? (voted ? 'bg-slate-100 text-slate-600 hover:bg-slate-200' : 'bg-teal-600 text-white hover:bg-teal-700') : 'bg-slate-100 text-slate-300 cursor-not-allowed'
+                  className={`shrink-0 px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-1.5 transition-all ${
+                    isOpen && !isSubmitted
+                      ? (complete ? 'bg-slate-100 text-slate-600 hover:bg-slate-200' : 'bg-gradient-to-r from-teal-600 to-emerald-600 text-white hover:from-teal-700 hover:to-emerald-700 shadow-sm')
+                      : 'bg-slate-100 text-slate-300 cursor-not-allowed'
                   }`}
                 >
-                  {openable(fm) ? (voted ? 'Ubah' : 'Nilai') : <Lock size={14} />}
+                  {isOpen && !isSubmitted ? (complete ? <><Eye size={14} /> {t(lang, 'fm.edit')}</> : t(lang, 'fm.assess')) : <Lock size={14} />}
                 </button>
               </div>
             );
           })}
+
+          {/* Submit section */}
+          {!isSubmitted && openFms.length > 0 && (
+            <div className="bg-gradient-to-r from-slate-50 to-teal-50 border-2 border-teal-200 rounded-2xl p-5 mt-4">
+              <div className="font-bold text-slate-800 mb-2 flex items-center gap-2"><Send size={16} /> {t(lang, 'submit.title')}</div>
+              <div className="text-sm text-slate-600 mb-3">
+                {allComplete
+                  ? (lang === 'id' ? 'Semua failure mode yang terbuka sudah dinilai lengkap. Anda dapat mengirim penilaian.' : 'All open failure modes are fully assessed. You can submit.')
+                  : t(lang, 'submit.checklist_incomplete')
+                }
+              </div>
+              <div className="text-xs text-slate-500 mb-3">
+                {openFms.map((fm) => {
+                  const d = myDrafts[fm.no];
+                  const ok = d && d.riskLikelihood && d.negativeConsequence && d.oppLikelihood && d.positiveConsequence;
+                  return (
+                    <span key={fm.no} className={`inline-flex items-center gap-1 mr-2 mb-1 px-2 py-0.5 rounded-lg text-[10px] font-bold ${ok ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                      {ok ? <CheckCircle2 size={10} /> : '○'} FM {fm.no}
+                    </span>
+                  );
+                })}
+              </div>
+              <button
+                disabled={!canSubmit}
+                onClick={() => setShowSubmitConfirm(true)}
+                className={`px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-all ${
+                  canSubmit ? 'bg-gradient-to-r from-teal-600 to-emerald-600 text-white hover:from-teal-700 hover:to-emerald-700 shadow-sm' : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                }`}
+              >
+                <Send size={16} /> {t(lang, 'submit.btn')}
+              </button>
+            </div>
+          )}
+
+          {isSubmitted && (
+            <div className="bg-green-50 border-2 border-green-200 rounded-2xl p-5 mt-4 text-center">
+              <CheckCircle2 size={32} className="mx-auto text-green-600 mb-2" />
+              <div className="font-bold text-green-800 text-lg">{t(lang, 'submit.locked')}</div>
+              <p className="text-sm text-green-600 mt-1">
+                {lang === 'id' ? 'Penilaian Anda telah dikirim dan terkunci.' : 'Your assessment has been submitted and locked.'}
+              </p>
+            </div>
+          )}
         </div>
       )}
 
-      {tab === 'results' && <ResultsTab session={session} participants={participants} />}
+      {tab === 'results' && <ResultsTab session={session} members={members} lang={lang} />}
+      {tab === 'guideline' && <GuidelineTab sessionCode={session.code} hasDocument={hasDocument} />}
 
+      {/* Assessment Form Modal */}
       {votingFM && (
-        <VotingForm fm={votingFM} existingVote={myVotes[votingFM.no]} onCancel={() => setVotingFM(null)}
-          onSubmit={(vote) => handleSubmitVote(votingFM, vote)} />
+        <AssessmentForm
+          fm={votingFM}
+          existingDraft={myDrafts[votingFM.no]}
+          onSave={handleSaveDraft}
+          onCancel={() => setVotingFM(null)}
+          readOnly={isSubmitted}
+        />
+      )}
+
+      {/* Submit Confirmation Modal */}
+      {showSubmitConfirm && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl">
+            <h3 className="text-lg font-bold text-slate-800 mb-2">{t(lang, 'submit.confirm_title')}</h3>
+            <p className="text-sm text-slate-600 mb-4">{t(lang, 'submit.confirm_message')}</p>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setShowSubmitConfirm(false)} className="px-4 py-2 rounded-xl text-slate-600 font-semibold hover:bg-slate-100">{t(lang, 'assessment.cancel')}</button>
+              <button
+                disabled={submitting}
+                onClick={handleSubmit}
+                className="px-5 py-2 rounded-xl font-bold text-white bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 shadow-sm"
+              >
+                {submitting ? '...' : t(lang, 'submit.confirm_btn')}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -994,42 +939,127 @@ function ParticipantMain({ initialSession, participant, onExit }) {
 // APP ROOT
 // ---------------------------------------------------------------------------
 
-export default function FMEAApp() {
+function AppContent() {
+  const { user, isLoaded, isSignedIn } = useUser();
   const [screen, setScreen] = useState('landing');
   const [session, setSession] = useState(null);
-  const [participantInfo, setParticipantInfo] = useState(null);
   const [migrated, setMigrated] = useState(false);
+  const [profileComplete, setProfileComplete] = useState(true);
 
   // Run migration on first load
   useEffect(() => {
     if (!migrated) {
       api.runMigration()
         .then(() => setMigrated(true))
-        .catch((e) => console.error('Migration error (may already exist):', e));
+        .catch(() => setMigrated(true)); // may already exist
     }
   }, [migrated]);
 
+  // Sync user profile
+  useEffect(() => {
+    if (user) {
+      api.getMe().then((me) => {
+        if (!me.professional_role_key || !me.experience_level) {
+          setProfileComplete(false);
+        } else {
+          setProfileComplete(true);
+        }
+      }).catch(() => {});
+    }
+  }, [user]);
+
+  if (!isLoaded) {
+    return (
+      <AppShell>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-slate-400 animate-pulse font-bold">Loading...</div>
+        </div>
+      </AppShell>
+    );
+  }
+
+  if (!isSignedIn) {
+    return (
+      <AppShell>
+        <div className="min-h-[70vh] flex flex-col items-center justify-center p-6 text-center">
+          <div className="p-4 bg-teal-50 border border-teal-200 rounded-3xl mb-4 text-teal-700">
+            <HardHat size={40} />
+          </div>
+          <h2 className="text-2xl font-bold text-slate-800">PT Solusi Geotek Optima — FMEA Workshop</h2>
+          <p className="text-slate-500 mt-2 max-w-md">
+            Please sign in to access workshop assessments, saved drafts, and session materials.
+          </p>
+          <a
+            href="/sign-in"
+            className="mt-6 inline-flex items-center gap-2 bg-gradient-to-r from-teal-600 to-emerald-600 text-white font-bold px-6 py-3 rounded-xl shadow-md hover:from-teal-700 hover:to-emerald-700 transition-all"
+          >
+            <LogIn size={18} /> Sign In with Email
+          </a>
+        </div>
+      </AppShell>
+    );
+  }
+
+  // Profile setup needed
+  if (user && !profileComplete && screen === 'landing') {
+    return (
+      <AppShell>
+        <ProfileSetup
+          onComplete={async (profile) => {
+            await api.updateProfile(profile);
+            setProfileComplete(true);
+          }}
+        />
+      </AppShell>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-slate-50" style={{ fontFamily: 'ui-sans-serif, system-ui, sans-serif' }}>
+    <AppShell sessionName={session?.name}>
       {screen === 'landing' && (
-        <Landing onPickFacilitator={() => setScreen('facSetup')} onPickParticipant={() => setScreen('partJoin')} />
+        <Landing
+          user={user}
+          onPickFacilitator={() => setScreen('facSetup')}
+          onPickParticipant={() => setScreen('partJoin')}
+        />
       )}
 
       {screen === 'facSetup' && (
-        <FacilitatorSetup onBack={() => setScreen('landing')} onSessionReady={(s) => { setSession(s); setScreen('facDash'); }} />
+        <FacilitatorSetup
+          onBack={() => setScreen('landing')}
+          onSessionReady={(s) => { setSession(s); setScreen('facDash'); }}
+        />
       )}
 
       {screen === 'facDash' && session && (
-        <FacilitatorDashboard session={session} onUpdateSession={setSession} onExit={() => { setSession(null); setScreen('landing'); }} />
+        <FacilitatorDashboard
+          session={session}
+          onUpdateSession={setSession}
+          onExit={() => { setSession(null); setScreen('landing'); }}
+        />
       )}
 
       {screen === 'partJoin' && (
-        <ParticipantJoin onBack={() => setScreen('landing')} onJoined={({ session: s, participant }) => { setSession(s); setParticipantInfo(participant); setScreen('partMain'); }} />
+        <ParticipantJoin
+          onBack={() => setScreen('landing')}
+          onJoined={({ session: s }) => { setSession(s); setScreen('partMain'); }}
+        />
       )}
 
-      {screen === 'partMain' && session && participantInfo && (
-        <ParticipantMain initialSession={session} participant={participantInfo} onExit={() => { setSession(null); setParticipantInfo(null); setScreen('landing'); }} />
+      {screen === 'partMain' && session && (
+        <ParticipantMain
+          initialSession={session}
+          onExit={() => { setSession(null); setScreen('landing'); }}
+        />
       )}
-    </div>
+    </AppShell>
+  );
+}
+
+export default function FMEAApp() {
+  return (
+    <LangProvider>
+      <AppContent />
+    </LangProvider>
   );
 }
