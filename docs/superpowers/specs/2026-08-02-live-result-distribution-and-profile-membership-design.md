@@ -27,9 +27,11 @@ For example, three Likelihood responses of Beginner = 5, Beginner = 5, and Exper
 The facilitator Results tab renders, for each failure mode:
 
 1. Existing aggregate-risk summary.
-2. A Likelihood table for ratings 1 to 5 and their response counts.
-3. A Consequence table for ratings 1 to 5 and their response counts.
-4. A labelled Likelihood by Consequence 5 by 5 matrix showing response counts in each pair.
+2. A Likelihood bar chart for ratings 1 to 5. Each bar shows its exact response count.
+3. A Consequence bar chart for ratings 1 to 5. Each bar shows its exact response count.
+4. A labelled Likelihood by Consequence 5 by 5 heatmap showing the response count in every pair. Every cell displays its exact count, including zero-count cells.
+
+The charts must use the unweighted anonymous response counts so facilitators can reconcile them with participant choices. The aggregate summary separately displays the experience-weighted averages and rounded ratings used for the final Merdeka risk score. The charts and heatmap are visual cross-check aids, not replacements for the weighted final calculation.
 
 The existing six-second refresh continues to update the data. The participant role remains prohibited from reading the Live Results endpoint.
 
