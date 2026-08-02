@@ -6,11 +6,8 @@ import { t } from '@/lib/i18n';
 import {
   LIKELIHOOD_LEVELS,
   NEGATIVE_CONSEQUENCE_LEVELS,
-  POSITIVE_CONSEQUENCE_LEVELS,
   RISK_MATRIX,
-  OPPORTUNITY_MATRIX,
   RISK_LEVEL_CONFIG,
-  OPPORTUNITY_LEVEL_CONFIG,
 } from '@/lib/merdeka';
 import { EXPERIENCE_LEVELS } from '@/lib/i18n';
 import { useLang } from './AppShell';
@@ -129,7 +126,7 @@ export default function GuidelineTab({ sessionCode, hasDocument }) {
         )}
       </div>
 
-      {/* Workshop Workflow */}
+      {/* Workshop Workflow — Risk-only */}
       <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
         <div className="flex items-center gap-2 mb-3">
           <Info size={18} className="text-blue-500" />
@@ -139,7 +136,7 @@ export default function GuidelineTab({ sessionCode, hasDocument }) {
           {lang === 'id' ? (
             <>
               <li>Fasilitator membuka failure mode untuk penilaian.</li>
-              <li>Peserta menilai setiap failure mode untuk <strong>Risiko</strong> (Kemungkinan × Konsekuensi Negatif) dan <strong>Peluang</strong> (Kemungkinan × Konsekuensi Positif).</li>
+              <li>Peserta menilai setiap failure mode untuk <strong>Risiko</strong> (Kemungkinan × Konsekuensi Negatif).</li>
               <li>Draf tersimpan otomatis dan dapat diubah selama status masih Draf.</li>
               <li>Setelah semua failure mode yang terbuka dinilai lengkap, peserta menekan <strong>Kirim Penilaian</strong>.</li>
               <li>Penilaian yang sudah dikirim bersifat <strong>permanen</strong> dan tidak dapat diubah.</li>
@@ -148,7 +145,7 @@ export default function GuidelineTab({ sessionCode, hasDocument }) {
           ) : (
             <>
               <li>The facilitator opens failure modes for assessment.</li>
-              <li>Participants assess each failure mode for <strong>Risk</strong> (Likelihood × Negative Consequence) and <strong>Opportunity</strong> (Likelihood × Positive Consequence).</li>
+              <li>Participants assess each failure mode for <strong>Risk</strong> (Likelihood × Negative Consequence).</li>
               <li>Drafts are auto-saved and editable while in Draft status.</li>
               <li>Once all open failure modes have complete assessments, the participant clicks <strong>Submit Assessment</strong>.</li>
               <li>Submitted assessments are <strong>immutable</strong> and cannot be modified.</li>
@@ -222,23 +219,6 @@ export default function GuidelineTab({ sessionCode, hasDocument }) {
       <ResponseTable
         title={`${t(lang, 'guideline.response_table')} — ${lang === 'id' ? 'Risiko' : 'Risk'}`}
         levelConfig={RISK_LEVEL_CONFIG}
-        lang={lang}
-      />
-
-      {/* Opportunity Matrix */}
-      <MatrixTable
-        title={t(lang, 'guideline.opportunity_matrix')}
-        icon={<Table2 size={18} className="text-purple-500" />}
-        rows={LIKELIHOOD_LEVELS}
-        cols={POSITIVE_CONSEQUENCE_LEVELS}
-        matrix={OPPORTUNITY_MATRIX}
-        levelConfig={OPPORTUNITY_LEVEL_CONFIG}
-      />
-
-      {/* Opportunity Response */}
-      <ResponseTable
-        title={`${t(lang, 'guideline.response_table')} — ${lang === 'id' ? 'Peluang' : 'Opportunity'}`}
-        levelConfig={OPPORTUNITY_LEVEL_CONFIG}
         lang={lang}
       />
     </div>

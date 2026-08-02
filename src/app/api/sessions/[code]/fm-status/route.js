@@ -1,13 +1,17 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
+import { getAuthenticatedUser, requireAppRole } from '@/lib/auth';
 
 /**
- * PUT /api/sessions/[code]/fm-status — Update FM status (single or bulk)
+ * PUT /api/sessions/[code]/fm-status — Update FM status (facilitator only, single or bulk)
  * Body: { fmNo, status } for single, or { bulk: [{ fmNo, status }] } for bulk
  */
 export async function PUT(request, { params }) {
   try {
     const { code } = await params;
+    const { userId, appRole } = await getAuthenticatedUser();
+    await requireAppRole(['facilitator'], { appRole });
+
     const body = await request.json();
 
     // Get session id

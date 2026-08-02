@@ -131,7 +131,8 @@ export const NEGATIVE_CONSEQUENCE_LEVELS = [
 ];
 
 // ---------------------------------------------------------------------------
-// POSITIVE CONSEQUENCE LEVELS (Opportunity)
+// POSITIVE CONSEQUENCE LEVELS (1 to 5) - Opportunity
+// @deprecated Used for legacy Opportunity tracking. New assessments are Risk-only.
 // ---------------------------------------------------------------------------
 
 export const POSITIVE_CONSEQUENCE_LEVELS = [
@@ -190,6 +191,8 @@ export const POSITIVE_CONSEQUENCE_LEVELS = [
 // ---------------------------------------------------------------------------
 // RISK MATRIX — 5×5 grid: RISK_MATRIX[likelihood][negativeConsequence]
 // Levels: Low, Moderate, High, Extreme
+// Scores are ranked 1–25 (not L×C products) to reflect asymmetric risk
+// prioritization aligned with PT SGO dam safety practice.
 // ---------------------------------------------------------------------------
 
 const L = 'Low', M = 'Moderate', H = 'High', E = 'Extreme';
@@ -197,20 +200,21 @@ const L = 'Low', M = 'Moderate', H = 'High', E = 'Extreme';
 // [likelihood (1-5)][consequence (1-5)] => { level, score }
 export const RISK_MATRIX = {
   // Rare
-  1: { 1: { level: L, score: 1 },  2: { level: L, score: 2 },  3: { level: L, score: 3 },   4: { level: M, score: 4 },  5: { level: M, score: 5 } },
+  1: { 1: { level: L, score: 1 },  2: { level: L, score: 2 },  3: { level: M, score: 6 },   4: { level: M, score: 9 },  5: { level: H, score: 14 } },
   // Unlikely
-  2: { 1: { level: L, score: 2 },  2: { level: L, score: 4 },  3: { level: M, score: 6 },   4: { level: M, score: 8 },  5: { level: H, score: 10 } },
+  2: { 1: { level: L, score: 3 },  2: { level: L, score: 4 },  3: { level: M, score: 10 },  4: { level: H, score: 15 }, 5: { level: H, score: 18 } },
   // Possible
-  3: { 1: { level: L, score: 3 },  2: { level: M, score: 6 },  3: { level: M, score: 9 },   4: { level: H, score: 12 }, 5: { level: H, score: 15 } },
+  3: { 1: { level: L, score: 5 },  2: { level: M, score: 7 },  3: { level: H, score: 16 },  4: { level: H, score: 19 }, 5: { level: E, score: 21 } },
   // Likely
-  4: { 1: { level: M, score: 4 },  2: { level: M, score: 8 },  3: { level: H, score: 12 },  4: { level: E, score: 16 }, 5: { level: E, score: 20 } },
+  4: { 1: { level: M, score: 8 },  2: { level: M, score: 11 }, 3: { level: H, score: 17 },  4: { level: E, score: 22 }, 5: { level: E, score: 23 } },
   // Almost Certain
-  5: { 1: { level: M, score: 5 },  2: { level: H, score: 10 }, 3: { level: H, score: 15 },  4: { level: E, score: 20 }, 5: { level: E, score: 25 } },
+  5: { 1: { level: M, score: 12 }, 2: { level: H, score: 13 }, 3: { level: H, score: 20 },  4: { level: E, score: 24 }, 5: { level: E, score: 25 } },
 };
 
 // ---------------------------------------------------------------------------
-// OPPORTUNITY MATRIX — 5×5 grid
+// OPPORTUNITY MATRIX — 5×5 grid: OPPORTUNITY_MATRIX[likelihood][positiveConsequence]
 // Levels: Weak, Encouraged, Important, Foremost
+// @deprecated Opportunity tracking is removed.
 // ---------------------------------------------------------------------------
 
 const W = 'Weak', EN = 'Encouraged', I = 'Important', F = 'Foremost';
@@ -341,6 +345,9 @@ export function getRiskCell(likelihood, negativeConsequence) {
  * @param {number} positiveConsequence - 1 to 5
  * @returns {{ score: number, level: string, color: string, bgColor: string, textColor: string, response: { en: string, id: string } }}
  */
+/**
+ * @deprecated Opportunity tracking is removed.
+ */
 export function getOpportunityCell(likelihood, positiveConsequence) {
   const cell = OPPORTUNITY_MATRIX[likelihood]?.[positiveConsequence];
   if (!cell) return null;
@@ -368,6 +375,9 @@ export function getNegativeConsequenceLevel(value) {
 
 /**
  * Get positive consequence level metadata by value.
+ */
+/**
+ * @deprecated Opportunity tracking is removed.
  */
 export function getPositiveConsequenceLevel(value) {
   return POSITIVE_CONSEQUENCE_LEVELS.find((c) => c.value === value) || null;

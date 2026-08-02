@@ -8,7 +8,7 @@ import {
   Lock, Unlock, Upload, Download, Users, BarChart3, ArrowLeft, CheckCircle2,
   Copy, RefreshCw, ClipboardList, Settings, AlertTriangle, Trophy,
   FileSpreadsheet, ChevronRight, HardHat, Shield, Sparkles,
-  BookOpen, Send, RotateCcw, Eye, LogIn
+  BookOpen, Send, RotateCcw, Eye, LogIn, Globe, Save
 } from 'lucide-react';
 import * as api from '@/lib/api';
 import { t, PROFESSIONAL_ROLES, EXPERIENCE_LEVELS, EXPERIENCE_WEIGHT } from '@/lib/i18n';
@@ -75,6 +75,12 @@ function weightedAvg(assessments, riskField, expField) {
 function roundRating(avg, max) {
   if (avg == null || isNaN(avg)) return null;
   return Math.min(max, Math.max(1, Math.round(avg)));
+}
+
+function resolveLang(val, lang) {
+  if (!val) return '';
+  if (typeof val === 'string') return val;
+  return val[lang] || val.id || val.en || '';
 }
 
 // ---------------------------------------------------------------------------
@@ -366,12 +372,12 @@ function ControlTab({ session, onUpdateSession }) {
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <Badge color="#1e293b" bgColor="#f1f5f9">FM {fm.no}</Badge>
-                  {fm.category && <Badge color="#0d9488" bgColor="#f0fdfa">{fm.category}</Badge>}
+                  {resolveLang(fm.category, lang) && <Badge color="#0d9488" bgColor="#f0fdfa">{resolveLang(fm.category, lang)}</Badge>}
                   {status === 'open' && <Badge color="#16a34a" bgColor="#dcfce7">{t(lang, 'fm.open')}</Badge>}
                   {status === 'closed' && <Badge color="#dc2626" bgColor="#fee2e2">{t(lang, 'fm.closed')}</Badge>}
                   {status === 'locked' && <Badge color="#ca8a04" bgColor="#fef9c3">{t(lang, 'fm.locked')}</Badge>}
                 </div>
-                <div className="text-sm text-slate-700 truncate mt-1">{fm.title}</div>
+                <div className="text-sm text-slate-700 truncate mt-1">{resolveLang(fm.title, lang) || '(Untitled)'}</div>
               </div>
               <div className="flex gap-1.5 shrink-0">
                 <button onClick={() => setStatus(fm.no, 'open')} title="Open"
@@ -438,76 +444,60 @@ function UploadTab({ session }) {
 }
 
 // ---------------------------------------------------------------------------
-// RESULTS TAB (shared between facilitator and participant)
+// RESULTS TAB (Facilitator only)
 // ---------------------------------------------------------------------------
 
-function ResultsTab({ session, members, lang }) {
-  const sorted = [...session.fmList].map((fm) => {
-    const assessments = (members || []).map((m) => {
-      const d = m.drafts?.[fm.no];
-      if (!d || !d.riskLikelihood) return null;
-      return { ...d, experience: m.experience_level || m.experienceLevel || 'beginner' };
-    }).filter(Boolean);
-    const n = assessments.length;
-    const avgRL = weightedAvg(assessments, 'riskLikelihood', 'experience');
-    const avgNC = weightedAvg(assessments, 'negativeConsequence', 'experience');
-    const rRL = roundRating(avgRL, 5);
-    const rNC = roundRating(avgNC, 5);
-    const riskCell = rRL && rNC ? getRiskCell(rRL, rNC) : null;
+function ResultsTab({ session, liveData, lang }) {
+  if (!liveData) return <div className="text-slate-500 animate-pulse text-sm">Loading...</div>;
 
-    const avgOL = weightedAvg(assessments, 'oppLikelihood', 'experience');
-    const avgPC = weightedAvg(assessments, 'positiveConsequence', 'experience');
-    const rOL = roundRating(avgOL, 5);
-    const rPC = roundRating(avgPC, 5);
-    const oppCell = rOL && rPC ? getOpportunityCell(rOL, rPC) : null;
+  const { totalMembers, aggregated } = liveData;
 
-    return { fm, n, riskCell, oppCell, riskScore: riskCell?.score || 0 };
-  }).sort((a, b) => b.riskScore - a.riskScore);
+  // Re-link with full FM data to get titles, sort by risk score descending
+  const sorted = aggregated.map((agg) => {
+    const fm = session.fmList.find((f) => f.no === agg.fmNo) || { no: agg.fmNo, title: 'Unknown' };
+    return { fm, ...agg };
+  });
 
   const top = sorted.find((x) => x.riskScore > 0);
-  const totalAssessments = (members || []).reduce((a, m) => a + Object.keys(m.drafts || {}).length, 0);
+  const totalAssessments = sorted.reduce((sum, item) => sum + item.count, 0);
 
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatCard icon={<Users size={18} />} label={t(lang, 'results.participants')} value={(members || []).length} />
+        <StatCard icon={<Users size={18} />} label={t(lang, 'results.participants')} value={totalMembers || 0} />
         <StatCard icon={<ClipboardList size={18} />} label={t(lang, 'results.total_fm')} value={session.fmList.length} />
         <StatCard icon={<CheckCircle2 size={18} />} label={t(lang, 'results.assessments')} value={totalAssessments} />
         <StatCard icon={<Trophy size={18} />} label={t(lang, 'results.highest_risk')} value={top ? top.riskScore : '-'} sub={top ? `FM ${top.fm.no}` : ''} />
       </div>
 
       <div className="space-y-3">
-        {sorted.map(({ fm, n, riskCell, oppCell }) => (
-          <div key={fm.no} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
-            <div className="flex items-start justify-between gap-3 flex-wrap">
-              <div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <Badge color="#1e293b" bgColor="#f1f5f9">FM {fm.no}</Badge>
-                  {fm.category && <Badge color="#0d9488" bgColor="#f0fdfa">{fm.category}</Badge>}
-                  <span className="text-xs text-slate-400">{n} {t(lang, 'results.responses')}</span>
+        {sorted.map(({ fm, count, roundedLikelihood, roundedConsequence, riskScore, riskLevel }) => {
+          const riskCell = roundedLikelihood && roundedConsequence ? getRiskCell(roundedLikelihood, roundedConsequence) : null;
+          return (
+            <div key={fm.no} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+              <div className="flex items-start justify-between gap-3 flex-wrap">
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge color="#1e293b" bgColor="#f1f5f9">FM {fm.no}</Badge>
+                    {resolveLang(fm.category, lang) && <Badge color="#0d9488" bgColor="#f0fdfa">{resolveLang(fm.category, lang)}</Badge>}
+                    <span className="text-xs text-slate-400">{count} {t(lang, 'results.responses')}</span>
+                  </div>
+                  <div className="font-bold text-slate-800 mt-1">{resolveLang(fm.title, lang) || '(Untitled)'}</div>
                 </div>
-                <div className="font-bold text-slate-800 mt-1">{fm.title || '(Untitled)'}</div>
+                <div className="flex gap-2 shrink-0">
+                  {riskCell && (
+                    <div className="text-center px-3 py-1.5 rounded-xl" style={{ backgroundColor: riskCell.bgColor, color: riskCell.textColor }}>
+                      <div className="text-[10px] font-bold uppercase flex items-center gap-1"><Shield size={10} /> Risk</div>
+                      <div className="text-lg font-extrabold leading-tight">{riskCell.score}</div>
+                      <div className="text-[10px] font-bold">{riskCell.level}</div>
+                    </div>
+                  )}
+                </div>
               </div>
-              <div className="flex gap-2 shrink-0">
-                {riskCell && (
-                  <div className="text-center px-3 py-1.5 rounded-xl" style={{ backgroundColor: riskCell.bgColor, color: riskCell.textColor }}>
-                    <div className="text-[10px] font-bold uppercase flex items-center gap-1"><Shield size={10} /> Risk</div>
-                    <div className="text-lg font-extrabold leading-tight">{riskCell.score}</div>
-                    <div className="text-[10px] font-bold">{riskCell.level}</div>
-                  </div>
-                )}
-                {oppCell && (
-                  <div className="text-center px-3 py-1.5 rounded-xl" style={{ backgroundColor: oppCell.bgColor, color: oppCell.textColor }}>
-                    <div className="text-[10px] font-bold uppercase flex items-center gap-1"><Sparkles size={10} /> Opp</div>
-                    <div className="text-lg font-extrabold leading-tight">{oppCell.score}</div>
-                    <div className="text-[10px] font-bold">{oppCell.level}</div>
-                  </div>
-                )}
-              </div>
+              {count === 0 && <div className="text-sm text-slate-400 italic mt-2">{t(lang, 'results.no_data')}</div>}
             </div>
-            {n === 0 && <div className="text-sm text-slate-400 italic mt-2">{t(lang, 'results.no_data')}</div>}
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -517,30 +507,24 @@ function ResultsTab({ session, members, lang }) {
 // EXPORT TAB
 // ---------------------------------------------------------------------------
 
-function ExportTab({ session, members }) {
+function ExportTab({ session, liveData }) {
   const { lang } = useLang();
 
   function exportExcel() {
+    if (!liveData) return;
+    const { aggregated } = liveData;
+
     const rows = session.fmList.map((fm) => {
-      const assessments = (members || []).map((m) => {
-        const d = m.drafts?.[fm.no];
-        if (!d) return null;
-        return { ...d, experience: m.experience_level || 'beginner' };
-      }).filter(Boolean);
-      const avgRL = weightedAvg(assessments, 'riskLikelihood'); const rRL = roundRating(avgRL, 5);
-      const avgNC = weightedAvg(assessments, 'negativeConsequence'); const rNC = roundRating(avgNC, 5);
+      const agg = aggregated.find((a) => a.fmNo === fm.no) || {};
+      const rRL = agg.roundedLikelihood;
+      const rNC = agg.roundedConsequence;
       const riskCell = rRL && rNC ? getRiskCell(rRL, rNC) : null;
-      const avgOL = weightedAvg(assessments, 'oppLikelihood'); const rOL = roundRating(avgOL, 5);
-      const avgPC = weightedAvg(assessments, 'positiveConsequence'); const rPC = roundRating(avgPC, 5);
-      const oppCell = rOL && rPC ? getOpportunityCell(rOL, rPC) : null;
 
       return {
-        'FM No.': fm.no, 'Category': fm.category, 'Potential Failure Mode': fm.title,
+        'FM No.': fm.no, 'Category': resolveLang(fm.category, lang), 'Potential Failure Mode': resolveLang(fm.title, lang),
         'Risk Likelihood': rRL || '', 'Neg. Consequence': rNC || '',
         'Risk Score': riskCell?.score || '', 'Risk Level': riskCell?.level || '',
-        'Opp Likelihood': rOL || '', 'Pos. Consequence': rPC || '',
-        'Opp Score': oppCell?.score || '', 'Opp Level': oppCell?.level || '',
-        'Respondents': assessments.length,
+        'Respondents': agg.count || 0,
       };
     });
 
@@ -561,13 +545,153 @@ function ExportTab({ session, members }) {
 }
 
 // ---------------------------------------------------------------------------
+// TRANSLATION REVIEW TAB
+// ---------------------------------------------------------------------------
+
+function TranslationReviewTab({ session, onUpdateSession }) {
+  const { lang } = useLang();
+  const [selectedFmNo, setSelectedFmNo] = useState(null);
+  const [editFields, setEditFields] = useState({});
+  const [busy, setBusy] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const activeFm = session.fmList.find((f) => f.no === selectedFmNo);
+
+  const fieldsToReview = [
+    { key: 'title', label: 'Potential Failure Mode' },
+    { key: 'mechanism', label: 'Mechanism' },
+    { key: 'initiation', label: 'Initiation' },
+    { key: 'continuation', label: 'Continuation' },
+    { key: 'progression', label: 'Progression' },
+    { key: 'detectionMonitoring', label: 'Detection / Monitoring' },
+    { key: 'intervention', label: 'Intervention' },
+    { key: 'effect', label: 'Effect' },
+    { key: 'notes', label: 'Notes' },
+    { key: 'ownerAction', label: 'Owner / Action' },
+  ];
+
+  function openFm(fm) {
+    setSelectedFmNo(fm.no);
+    setSaved(false);
+    const initialEdits = {};
+    fieldsToReview.forEach((f) => {
+      if (fm[f.key] && typeof fm[f.key] === 'object') {
+        initialEdits[f.key] = fm[f.key].en || '';
+      }
+    });
+    setEditFields(initialEdits);
+  }
+
+  async function handleSave() {
+    if (!activeFm) return;
+    setBusy(true);
+    try {
+      await api.updateTranslations(session.code, activeFm.no, editFields);
+      // Optimistically update the session
+      const updatedList = session.fmList.map((fm) => {
+        if (fm.no !== activeFm.no) return fm;
+        const newFm = { ...fm };
+        Object.keys(editFields).forEach((key) => {
+          if (newFm[key] && typeof newFm[key] === 'object') {
+            newFm[key] = { ...newFm[key], en: editFields[key] };
+          }
+        });
+        return newFm;
+      });
+      onUpdateSession({ ...session, fmList: updatedList });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (e) {
+      alert(e.message);
+    }
+    setBusy(false);
+  }
+
+  return (
+    <div className="flex flex-col md:flex-row gap-4">
+      {/* List */}
+      <div className="w-full md:w-1/3 bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col max-h-[600px]">
+        <div className="p-3 bg-slate-50 border-b border-slate-200 font-bold text-slate-800 text-sm flex items-center gap-2">
+          <Globe size={16} className="text-blue-500" />
+          Select Failure Mode
+        </div>
+        <div className="overflow-y-auto flex-1 divide-y divide-slate-100">
+          {session.fmList.map((fm) => (
+            <button
+              key={fm.no}
+              onClick={() => openFm(fm)}
+              className={`w-full text-left p-3 text-sm transition-all hover:bg-slate-50 ${selectedFmNo === fm.no ? 'bg-blue-50 border-l-4 border-blue-500' : 'border-l-4 border-transparent'}`}
+            >
+              <div className="font-bold text-slate-800">FM {fm.no}</div>
+              <div className="text-slate-500 truncate text-xs">{resolveLang(fm.title, 'id')}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Editor */}
+      <div className="w-full md:w-2/3 bg-white border border-slate-200 rounded-2xl shadow-sm p-5">
+        {!activeFm ? (
+          <div className="h-full flex items-center justify-center text-slate-400 italic text-sm">
+            Select a Failure Mode to review translations.
+          </div>
+        ) : (
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-slate-800 text-lg">FM {activeFm.no} Translations</h3>
+              <button
+                disabled={busy}
+                onClick={handleSave}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-sm transition-all flex items-center gap-2 disabled:opacity-50"
+              >
+                <Save size={16} /> {busy ? 'Saving...' : (saved ? 'Saved!' : 'Save Edits')}
+              </button>
+            </div>
+            
+            <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
+              {fieldsToReview.map((field) => {
+                const val = activeFm[field.key];
+                if (!val || typeof val !== 'object' || !val.id) return null; // Only show fields that have bilingual data
+                
+                return (
+                  <div key={field.key} className="bg-slate-50 rounded-xl p-3 border border-slate-200">
+                    <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">{field.label}</div>
+                    
+                    <div className="grid md:grid-cols-2 gap-3">
+                      <div>
+                        <div className="text-[10px] font-bold text-slate-400 mb-1">ID (Source)</div>
+                        <div className="text-sm p-2.5 bg-white border border-slate-200 rounded-lg text-slate-700">
+                          {val.id}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] font-bold text-blue-500 mb-1">EN (Translation)</div>
+                        <textarea
+                          value={editFields[field.key] || ''}
+                          onChange={(e) => setEditFields({ ...editFields, [field.key]: e.target.value })}
+                          className="w-full text-sm p-2 border border-blue-200 rounded-lg text-slate-800 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all min-h-[60px]"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // FACILITATOR DASHBOARD
 // ---------------------------------------------------------------------------
 
 function FacilitatorDashboard({ session, onUpdateSession, onExit }) {
   const { lang } = useLang();
   const [tab, setTab] = useState('import');
-  const [members, setMembers] = useState([]);
+  const [liveData, setLiveData] = useState(null);
   const [copied, setCopied] = useState(false);
 
   const refresh = useCallback(async () => {
@@ -575,11 +699,9 @@ function FacilitatorDashboard({ session, onUpdateSession, onExit }) {
       const data = await api.getFullSession(session.code);
       onUpdateSession(data.session);
       try {
-        const memberData = await api.getMembership(session.code);
-        if (memberData.members) {
-          setMembers(memberData.members.map((m) => ({ ...m, drafts: {} })));
-        }
-      } catch { /* membership may not exist yet */ }
+        const live = await api.getLiveResults(session.code);
+        setLiveData(live);
+      } catch (e) { console.error('Failed to get live results', e); }
     } catch (e) { console.error(e); }
   }, [session.code]); // eslint-disable-line
 
@@ -599,6 +721,7 @@ function FacilitatorDashboard({ session, onUpdateSession, onExit }) {
     { id: 'upload', label: 'PDF', icon: <BookOpen size={15} /> },
     { id: 'control', label: t(lang, 'tab.control'), icon: <Lock size={15} /> },
     { id: 'results', label: t(lang, 'tab.results'), icon: <BarChart3 size={15} /> },
+    { id: 'translations', label: 'Translations', icon: <Globe size={15} /> },
     { id: 'export', label: t(lang, 'tab.export'), icon: <Download size={15} /> },
   ];
 
@@ -627,8 +750,9 @@ function FacilitatorDashboard({ session, onUpdateSession, onExit }) {
       {tab === 'import' && <ImportTab session={session} onUpdateSession={onUpdateSession} />}
       {tab === 'upload' && <UploadTab session={session} />}
       {tab === 'control' && <ControlTab session={session} onUpdateSession={onUpdateSession} />}
-      {tab === 'results' && <ResultsTab session={session} members={members} lang={lang} />}
-      {tab === 'export' && <ExportTab session={session} members={members} />}
+      {tab === 'translations' && <TranslationReviewTab session={session} onUpdateSession={onUpdateSession} />}
+      {tab === 'results' && <ResultsTab session={session} liveData={liveData} lang={lang} />}
+      {tab === 'export' && <ExportTab session={session} liveData={liveData} />}
     </div>
   );
 }
@@ -729,10 +853,6 @@ function ParticipantMain({ initialSession, onExit }) {
         await api.getDocumentInfo(session.code);
         setHasDocument(true);
       } catch { setHasDocument(false); }
-      try {
-        await api.getMembership(session.code);
-        setMembers([]);
-      } catch {}
     } catch (e) { console.error(e); }
   }, [session.code]);
 
@@ -763,13 +883,12 @@ function ParticipantMain({ initialSession, onExit }) {
   const openFms = session.fmList.filter((fm) => (session.fmStatus[fm.no] || 'locked') === 'open');
   const allComplete = openFms.every((fm) => {
     const d = myDrafts[fm.no];
-    return d && d.riskLikelihood && d.negativeConsequence && d.oppLikelihood && d.positiveConsequence;
+    return d && d.riskLikelihood && d.negativeConsequence;
   });
   const canSubmit = openFms.length > 0 && allComplete && !isSubmitted;
 
   const tabs = [
     { id: 'list', label: t(lang, 'tab.fm_list'), icon: <ClipboardList size={15} /> },
-    { id: 'results', label: t(lang, 'tab.results'), icon: <BarChart3 size={15} /> },
     { id: 'guideline', label: t(lang, 'tab.guideline'), icon: <BookOpen size={15} /> },
   ];
 
@@ -804,8 +923,7 @@ function ParticipantMain({ initialSession, onExit }) {
             const status = session.fmStatus[fm.no] || 'locked';
             const draft = myDrafts[fm.no];
             const hasRisk = draft?.riskLikelihood && draft?.negativeConsequence;
-            const hasOpp = draft?.oppLikelihood && draft?.positiveConsequence;
-            const complete = hasRisk && hasOpp;
+            const complete = hasRisk;
             const isOpen = status === 'open';
 
             return (
@@ -813,26 +931,18 @@ function ParticipantMain({ initialSession, onExit }) {
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <Badge color="#1e293b" bgColor="#f1f5f9">FM {fm.no}</Badge>
-                    {fm.category && <Badge color="#0d9488" bgColor="#f0fdfa">{fm.category}</Badge>}
+                    {resolveLang(fm.category, lang) && <Badge color="#0d9488" bgColor="#f0fdfa">{resolveLang(fm.category, lang)}</Badge>}
                     {status === 'locked' && <Badge color="#ca8a04" bgColor="#fef9c3">{t(lang, 'fm.not_opened')}</Badge>}
                     {status === 'closed' && <Badge color="#dc2626" bgColor="#fee2e2">{t(lang, 'fm.closed')}</Badge>}
                     {complete && <Badge color="#16a34a" bgColor="#dcfce7"><CheckCircle2 size={11} /> {t(lang, 'fm.assessed')}</Badge>}
-                    {isOpen && hasRisk && !hasOpp && <Badge color="#f97316" bgColor="#ffedd5">Risk ✓ / Opp ✗</Badge>}
-                    {isOpen && !hasRisk && hasOpp && <Badge color="#f97316" bgColor="#ffedd5">Risk ✗ / Opp ✓</Badge>}
                   </div>
-                  <div className="text-sm text-slate-700 truncate mt-1">{fm.title}</div>
+                  <div className="text-sm text-slate-700 truncate mt-1">{resolveLang(fm.title, lang) || '(Untitled)'}</div>
                   {complete && (
                     <div className="flex gap-2 mt-1.5">
                       {getRiskCell(draft.riskLikelihood, draft.negativeConsequence) && (
                         <span className="text-[10px] font-bold px-1.5 py-0.5 rounded"
                           style={{ backgroundColor: getRiskCell(draft.riskLikelihood, draft.negativeConsequence).bgColor, color: getRiskCell(draft.riskLikelihood, draft.negativeConsequence).textColor }}>
                           Risk: {getRiskCell(draft.riskLikelihood, draft.negativeConsequence).level} ({getRiskCell(draft.riskLikelihood, draft.negativeConsequence).score})
-                        </span>
-                      )}
-                      {getOpportunityCell(draft.oppLikelihood, draft.positiveConsequence) && (
-                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded"
-                          style={{ backgroundColor: getOpportunityCell(draft.oppLikelihood, draft.positiveConsequence).bgColor, color: getOpportunityCell(draft.oppLikelihood, draft.positiveConsequence).textColor }}>
-                          Opp: {getOpportunityCell(draft.oppLikelihood, draft.positiveConsequence).level} ({getOpportunityCell(draft.oppLikelihood, draft.positiveConsequence).score})
                         </span>
                       )}
                     </div>
@@ -866,7 +976,7 @@ function ParticipantMain({ initialSession, onExit }) {
               <div className="text-xs text-slate-500 mb-3">
                 {openFms.map((fm) => {
                   const d = myDrafts[fm.no];
-                  const ok = d && d.riskLikelihood && d.negativeConsequence && d.oppLikelihood && d.positiveConsequence;
+                  const ok = d && d.riskLikelihood && d.negativeConsequence;
                   return (
                     <span key={fm.no} className={`inline-flex items-center gap-1 mr-2 mb-1 px-2 py-0.5 rounded-lg text-[10px] font-bold ${ok ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                       {ok ? <CheckCircle2 size={10} /> : '○'} FM {fm.no}
@@ -898,7 +1008,6 @@ function ParticipantMain({ initialSession, onExit }) {
         </div>
       )}
 
-      {tab === 'results' && <ResultsTab session={session} members={members} lang={lang} />}
       {tab === 'guideline' && <GuidelineTab sessionCode={session.code} hasDocument={hasDocument} />}
 
       {/* Assessment Form Modal */}

@@ -1,12 +1,16 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
+import { getAuthenticatedUser, requireAppRole } from '@/lib/auth';
 
 /**
- * POST /api/sessions — Create a new workshop session
+ * POST /api/sessions — Create a new workshop session (facilitator only)
  * Body: { name, facilitator, code }
  */
 export async function POST(request) {
   try {
+    const { userId, appRole } = await getAuthenticatedUser();
+    await requireAppRole(['facilitator'], { appRole });
+
     const body = await request.json();
     const { name, facilitator, code } = body;
 
@@ -34,9 +38,10 @@ export async function POST(request) {
         { status: 409 }
       );
     }
+    const status = error.status || 500;
     return NextResponse.json(
       { error: error.message },
-      { status: 500 }
+      { status }
     );
   }
 }

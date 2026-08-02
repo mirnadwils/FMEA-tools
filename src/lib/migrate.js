@@ -174,6 +174,37 @@ export async function runMigrations() {
   const alters = [
     `ALTER TABLE participants ADD COLUMN IF NOT EXISTS experience TEXT DEFAULT 'beginner'`,
     `ALTER TABLE sessions ADD COLUMN IF NOT EXISTS template_version VARCHAR(50) DEFAULT 'merdeka-v1'`,
+
+    // -----------------------------------------------------------------------
+    // RISK-ONLY MIGRATION — Archive opportunity columns (rename, not drop)
+    // -----------------------------------------------------------------------
+    `DO $$ BEGIN
+       IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='assessment_drafts' AND column_name='opp_likelihood') THEN
+         ALTER TABLE assessment_drafts RENAME COLUMN opp_likelihood TO _legacy_opp_likelihood;
+       END IF;
+     END $$`,
+    `DO $$ BEGIN
+       IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='assessment_drafts' AND column_name='positive_consequence') THEN
+         ALTER TABLE assessment_drafts RENAME COLUMN positive_consequence TO _legacy_positive_consequence;
+       END IF;
+     END $$`,
+
+    // -----------------------------------------------------------------------
+    // BILINGUAL TRANSLATION TABLE
+    // -----------------------------------------------------------------------
+    `CREATE TABLE IF NOT EXISTS failure_mode_translations (
+       id SERIAL PRIMARY KEY,
+       failure_mode_id INTEGER REFERENCES failure_modes(id) ON DELETE CASCADE,
+       field_name TEXT NOT NULL,
+       source_lang VARCHAR(5) NOT NULL,
+       source_text TEXT NOT NULL,
+       text_id TEXT,
+       text_en TEXT,
+       translation_status VARCHAR(20) DEFAULT 'pending',
+       translation_provider TEXT,
+       translated_at TIMESTAMPTZ,
+       UNIQUE(failure_mode_id, field_name)
+     )`,
   ];
 
   const results = [];

@@ -15,8 +15,8 @@ const dict = {
     id: 'PT Solusi Geotek Optima',
   },
   'app.subtitle': {
-    en: 'Dam Safety Risk & Opportunity Assessment',
-    id: 'Penilaian Risiko & Peluang Keselamatan Bendungan',
+    en: 'Dam Safety Risk Assessment',
+    id: 'Penilaian Risiko Keselamatan Bendungan',
   },
 
   // Landing
@@ -25,8 +25,8 @@ const dict = {
     id: 'Workshop FMEA — Matriks Merdeka',
   },
   'landing.subtitle': {
-    en: 'Collaborative risk and opportunity assessment for dam safety failure modes.',
-    id: 'Penilaian risiko dan peluang kolaboratif untuk failure mode keselamatan bendungan.',
+    en: 'Collaborative risk assessment for dam safety failure modes.',
+    id: 'Penilaian risiko kolaboratif untuk failure mode keselamatan bendungan.',
   },
   'landing.facilitator': {
     en: 'I am a Facilitator',
@@ -41,8 +41,8 @@ const dict = {
     id: 'Saya Peserta Workshop',
   },
   'landing.participant_desc': {
-    en: 'Join a session with a code, then assess each failure mode for risk and opportunity.',
-    id: 'Gabung sesi dengan kode, lalu nilai setiap failure mode untuk risiko dan peluang.',
+    en: 'Join a session with a code, then assess each failure mode for risk.',
+    id: 'Gabung sesi dengan kode, lalu nilai setiap failure mode untuk risiko.',
   },
   'landing.start': {
     en: 'Start',

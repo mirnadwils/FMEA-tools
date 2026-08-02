@@ -1,14 +1,14 @@
 import { NextResponse } from 'next/server';
-import { getAuthenticatedUser, getClerkUser } from '@/lib/auth';
-import { upsertUserFromClerk, getUserByClerkId } from '@/lib/users';
+import { getAuthenticatedUser } from '@/lib/auth';
+import { upsertUserFromClerk } from '@/lib/users';
 
 /**
  * GET /api/me — Get current user profile
+ * Returns the Neon user record with appRole from Clerk publicMetadata.
  */
 export async function GET() {
   try {
-    const { userId, appRole } = await getAuthenticatedUser();
-    const clerkUser = await getClerkUser();
+    const { userId, appRole, clerkUser } = await getAuthenticatedUser();
 
     // Sync to Neon
     const user = await upsertUserFromClerk(clerkUser);

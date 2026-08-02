@@ -2,21 +2,28 @@ import { auth, currentUser } from '@clerk/nextjs/server';
 
 /**
  * Get the authenticated Clerk user from the current request context.
- * Throws 401 if not authenticated.
- * @returns {Promise<{ userId: string, sessionId: string, role: string }>}
+ * Reads appRole from the authoritative source: currentUser().publicMetadata.appRole.
+ * Falls back to 'participant' if publicMetadata.appRole is absent.
+ * @returns {Promise<{ userId: string, appRole: string, clerkUser: import('@clerk/nextjs/server').User }>}
  */
 export async function getAuthenticatedUser() {
-  const { userId, sessionClaims } = await auth();
+  const { userId } = await auth();
 
   if (!userId) {
     throw Object.assign(new Error('Unauthorized'), { status: 401 });
   }
 
-  const appRole = sessionClaims?.metadata?.appRole || sessionClaims?.publicMetadata?.appRole || 'participant';
+  const clerkUser = await currentUser();
+  if (!clerkUser) {
+    throw Object.assign(new Error('Unauthorized'), { status: 401 });
+  }
+
+  const appRole = clerkUser.publicMetadata?.appRole || 'participant';
 
   return {
     userId,
     appRole,
+    clerkUser,
   };
 }
 

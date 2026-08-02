@@ -4,8 +4,8 @@ import { getSessionMembership } from '@/lib/users';
 import { saveDraft, getDrafts } from '@/lib/assessment';
 
 /**
- * PUT /api/sessions/[code]/assessment — Save assessment draft
- * Body: { fmNo, riskLikelihood, negativeConsequence, oppLikelihood, positiveConsequence }
+ * PUT /api/sessions/[code]/assessment — Save assessment draft (risk-only)
+ * Body: { fmNo, riskLikelihood, negativeConsequence }
  */
 export async function PUT(request, { params }) {
   try {
@@ -26,8 +26,6 @@ export async function PUT(request, { params }) {
     const draft = await saveDraft(membership.id, body.fmNo, {
       riskLikelihood: body.riskLikelihood,
       negativeConsequence: body.negativeConsequence,
-      oppLikelihood: body.oppLikelihood,
-      positiveConsequence: body.positiveConsequence,
     });
 
     return NextResponse.json(draft);
@@ -38,7 +36,7 @@ export async function PUT(request, { params }) {
 }
 
 /**
- * GET /api/sessions/[code]/assessment — Get own assessment drafts
+ * GET /api/sessions/[code]/assessment — Get own assessment drafts (risk-only)
  */
 export async function GET(request, { params }) {
   try {
@@ -52,14 +50,12 @@ export async function GET(request, { params }) {
 
     const drafts = await getDrafts(membership.id);
 
-    // Convert to a map for easy client usage
+    // Convert to a map for easy client usage (risk-only)
     const draftMap = {};
     for (const d of drafts) {
       draftMap[d.fm_no] = {
         riskLikelihood: d.risk_likelihood,
         negativeConsequence: d.negative_consequence,
-        oppLikelihood: d.opp_likelihood,
-        positiveConsequence: d.positive_consequence,
         updatedAt: d.updated_at,
       };
     }

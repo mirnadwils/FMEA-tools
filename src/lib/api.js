@@ -121,6 +121,12 @@ export async function reopenSubmission(code, memberId, reason) {
   });
 }
 
+// ---- Live Results ----
+
+export async function getLiveResults(code) {
+  return fetchJSON(`${BASE}/sessions/${encodeURIComponent(code)}/live-results`);
+}
+
 // ---- Documents ----
 
 export async function uploadDocument(code, file, title) {
@@ -175,4 +181,13 @@ export async function submitVote(code, participantKey, fmNo, likelihood, severit
 
 export async function runMigration() {
   return fetchJSON(`${BASE}/migrate`, { method: 'POST' });
+}
+
+// ---- Translations ----
+
+export async function updateTranslations(code, fmNo, fields) {
+  return fetchJSON(`${BASE}/sessions/${encodeURIComponent(code)}/translations`, {
+    method: 'PUT',
+    body: JSON.stringify({ fmNo, fields }),
+  });
 }

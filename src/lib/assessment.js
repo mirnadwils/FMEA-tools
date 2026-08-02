@@ -3,9 +3,10 @@ import { MERDEKA_VERSION } from './merdeka';
 
 /**
  * Save or update an assessment draft for a single failure mode.
+ * Risk-only: only riskLikelihood and negativeConsequence.
  * Rejects if the member has already submitted.
  */
-export async function saveDraft(memberId, fmNo, { riskLikelihood, negativeConsequence, oppLikelihood, positiveConsequence }) {
+export async function saveDraft(memberId, fmNo, { riskLikelihood, negativeConsequence }) {
   // Check if already submitted
   const submissions = await query(
     'SELECT id FROM assessment_submissions WHERE member_id = $1',
@@ -16,14 +17,13 @@ export async function saveDraft(memberId, fmNo, { riskLikelihood, negativeConseq
   }
 
   const rows = await query(
-    `INSERT INTO assessment_drafts (member_id, fm_no, risk_likelihood, negative_consequence, opp_likelihood, positive_consequence)
-     VALUES ($1, $2, $3, $4, $5, $6)
+    `INSERT INTO assessment_drafts (member_id, fm_no, risk_likelihood, negative_consequence)
+     VALUES ($1, $2, $3, $4)
      ON CONFLICT (member_id, fm_no) DO UPDATE
      SET risk_likelihood = $3, negative_consequence = $4,
-         opp_likelihood = $5, positive_consequence = $6,
          updated_at = NOW()
      RETURNING *`,
-    [memberId, fmNo, riskLikelihood || null, negativeConsequence || null, oppLikelihood || null, positiveConsequence || null]
+    [memberId, fmNo, riskLikelihood || null, negativeConsequence || null]
   );
 
   return rows[0];
@@ -40,7 +40,8 @@ export async function getDrafts(memberId) {
 }
 
 /**
- * Check if all open failure modes have complete assessments (both risk and opportunity).
+ * Check if all open failure modes have complete Risk assessments.
+ * Risk-only: requires riskLikelihood and negativeConsequence for every open FM.
  * @param {string[]} openFmNos - Array of FM numbers that are currently open
  * @param {Object} drafts - Map of fmNo -> draft data
  * @returns {boolean}
@@ -51,15 +52,14 @@ export function isReadyToSubmit(openFmNos, drafts) {
   for (const fmNo of openFmNos) {
     const draft = drafts[fmNo];
     if (!draft) return false;
-    // Both risk and opportunity must be complete
     if (!draft.riskLikelihood || !draft.negativeConsequence) return false;
-    if (!draft.oppLikelihood || !draft.positiveConsequence) return false;
   }
   return true;
 }
 
 /**
  * Submit assessment — atomically create immutable snapshot and lock.
+ * Risk-only: snapshot contains only riskLikelihood and negativeConsequence.
  * @param {number} memberId - session_members.id
  * @param {number} sessionId - sessions.id
  * @param {string} clerkUserId - for audit
@@ -88,22 +88,20 @@ export async function submitAssessment(memberId, sessionId, clerkUserId) {
   );
   const openFmNos = openFms.map((f) => f.fm_no);
 
-  // Validate completeness
+  // Validate completeness (risk-only)
   const draftMap = {};
   for (const d of drafts) {
     draftMap[d.fm_no] = {
       riskLikelihood: d.risk_likelihood,
       negativeConsequence: d.negative_consequence,
-      oppLikelihood: d.opp_likelihood,
-      positiveConsequence: d.positive_consequence,
     };
   }
 
   if (!isReadyToSubmit(openFmNos, draftMap)) {
-    throw Object.assign(new Error('Not all open failure modes have complete assessments'), { status: 400 });
+    throw Object.assign(new Error('Not all open failure modes have complete Risk assessments'), { status: 400 });
   }
 
-  // Create immutable snapshot
+  // Create immutable snapshot (risk-only)
   const snapshot = {
     templateVersion: MERDEKA_VERSION,
     assessments: draftMap,

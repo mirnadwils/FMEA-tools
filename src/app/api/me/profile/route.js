@@ -1,20 +1,23 @@
 import { NextResponse } from 'next/server';
 import { getAuthenticatedUser } from '@/lib/auth';
-import { updateUserProfile } from '@/lib/users';
+import { upsertUserFromClerk, updateUserProfile } from '@/lib/users';
 
 /**
  * PUT /api/me/profile — Update user profile preferences
- * Body: { preferredLanguage, professionalRoleKey, experience }
+ * Body: { preferredLanguage, professionalRoleKey, customRoleText, experienceLevel }
  */
 export async function PUT(request) {
   try {
-    const { userId } = await getAuthenticatedUser();
+    const { userId, clerkUser } = await getAuthenticatedUser();
     const body = await request.json();
+
+    // Ensure user record exists in Neon before updating profile fields
+    await upsertUserFromClerk(clerkUser);
 
     const user = await updateUserProfile(userId, {
       preferredLanguage: body.preferredLanguage,
       professionalRoleKey: body.professionalRoleKey,
-      experience: body.experience,
+      experienceLevel: body.experienceLevel,
     });
 
     if (!user) {

@@ -9,9 +9,9 @@ import {
 } from '../src/lib/merdeka.js';
 
 describe('Merdeka Matrix', () => {
-  it('correctly maps Likely (4) + Major (4) to Extreme risk score 16', () => {
+  it('correctly maps Likely (4) + Major (4) to Extreme risk score 22', () => {
     const result = getRiskCell(4, 4);
-    assert.equal(result.score, 16);
+    assert.equal(result.score, 22);
     assert.equal(result.level, 'Extreme');
   });
 

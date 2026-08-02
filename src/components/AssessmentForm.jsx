@@ -1,16 +1,12 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { CheckCircle2, Shield, Sparkles } from 'lucide-react';
+import React, { useState } from 'react';
+import { CheckCircle2, Shield } from 'lucide-react';
 import { t } from '@/lib/i18n';
 import {
   LIKELIHOOD_LEVELS,
   NEGATIVE_CONSEQUENCE_LEVELS,
-  POSITIVE_CONSEQUENCE_LEVELS,
   getRiskCell,
-  getOpportunityCell,
-  RISK_LEVEL_CONFIG,
-  OPPORTUNITY_LEVEL_CONFIG,
 } from '@/lib/merdeka';
 import { useLang } from './AppShell';
 
@@ -75,7 +71,7 @@ function ResultBadge({ label, cell, icon }) {
       <div className="min-w-0">
         <div className="text-[10px] font-bold uppercase tracking-wider opacity-70">{label}</div>
         <div className="text-lg font-extrabold leading-tight">{cell.level}</div>
-        <div className="text-xs font-bold">{t('en', 'common.loading') !== 'Loading...' ? '' : ''}Score: {cell.score}</div>
+        <div className="text-xs font-bold">Score: {cell.score}</div>
       </div>
     </div>
   );
@@ -86,12 +82,9 @@ export default function AssessmentForm({ fm, existingDraft, onSave, onCancel, re
 
   const [riskL, setRiskL] = useState(existingDraft?.riskLikelihood || null);
   const [negC, setNegC] = useState(existingDraft?.negativeConsequence || null);
-  const [oppL, setOppL] = useState(existingDraft?.oppLikelihood || null);
-  const [posC, setPosC] = useState(existingDraft?.positiveConsequence || null);
   const [saving, setSaving] = useState(false);
 
   const riskCell = riskL && negC ? getRiskCell(riskL, negC) : null;
-  const oppCell = oppL && posC ? getOpportunityCell(oppL, posC) : null;
 
   async function handleSave() {
     setSaving(true);
@@ -100,8 +93,6 @@ export default function AssessmentForm({ fm, existingDraft, onSave, onCancel, re
         fmNo: fm.no,
         riskLikelihood: riskL,
         negativeConsequence: negC,
-        oppLikelihood: oppL,
-        positiveConsequence: posC,
       });
     } catch (e) {
       console.error('Save error:', e);
@@ -109,7 +100,29 @@ export default function AssessmentForm({ fm, existingDraft, onSave, onCancel, re
     setSaving(false);
   }
 
-  const canSave = riskL && negC && oppL && posC;
+  const canSave = riskL && negC;
+
+  const resolveLang = (val) => {
+    if (!val) return '';
+    if (typeof val === 'string') return val;
+    return val[lang] || val.id || val.en || '';
+  };
+
+  // Build the FM context fields in spec order, omitting empty values
+  const fmFields = [
+    { label: { en: 'FM No.', id: 'FM No.' }, value: fm.no },
+    { label: { en: 'Category', id: 'Kategori' }, value: resolveLang(fm.category) },
+    { label: { en: 'Potential Failure Mode', id: 'Potensi Failure Mode' }, value: resolveLang(fm.title) },
+    { label: { en: 'Main Trigger / Detailed Mechanism', id: 'Pemicu Utama / Mekanisme Detail' }, value: resolveLang(fm.mechanism) },
+    { label: { en: 'Initiation', id: 'Inisiasi' }, value: resolveLang(fm.initiation) },
+    { label: { en: 'Continuation', id: 'Kelanjutan' }, value: resolveLang(fm.continuation) },
+    { label: { en: 'Progression', id: 'Progesi' }, value: resolveLang(fm.progression) },
+    { label: { en: 'Potential Detection / Monitoring', id: 'Potensi Deteksi / Monitoring' }, value: resolveLang(fm.detectionMonitoring) },
+    { label: { en: 'Possible Intervention / Risk Controls', id: 'Kemungkinan Intervensi / Kontrol Risiko' }, value: resolveLang(fm.intervention) },
+    { label: { en: 'Potential Effect / Consequence', id: 'Potensi Efek / Konsekuensi' }, value: resolveLang(fm.effect) },
+    { label: { en: 'PFMA Notes / Workshop Questions', id: 'Catatan PFMA / Pertanyaan Workshop' }, value: resolveLang(fm.notes) },
+    { label: { en: 'Owner / Action', id: 'Pemilik / Tindakan' }, value: resolveLang(fm.ownerAction) },
+  ];
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
@@ -123,9 +136,9 @@ export default function AssessmentForm({ fm, existingDraft, onSave, onCancel, re
             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800 text-white text-xs font-bold">
               FM {fm.no}
             </span>
-            {fm.category && (
+            {resolveLang(fm.category) && (
               <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-teal-50 text-teal-700 text-xs font-bold border border-teal-200">
-                {fm.category}
+                {resolveLang(fm.category)}
               </span>
             )}
             {readOnly && (
@@ -134,33 +147,28 @@ export default function AssessmentForm({ fm, existingDraft, onSave, onCancel, re
               </span>
             )}
           </div>
-          <h3 className="text-lg font-bold text-slate-800 mt-2 leading-snug">{fm.title || '(Untitled)'}</h3>
+          <h3 className="text-lg font-bold text-slate-800 mt-2 leading-snug">{resolveLang(fm.title) || '(Untitled)'}</h3>
         </div>
 
-        {/* FM Context */}
+        {/* FM Walkthrough — all 12 fields in spec order */}
         <div className="px-5 pt-4 space-y-2">
-          {fm.mechanism && (
-            <div className="text-sm text-slate-600">
-              <span className="font-bold text-slate-700">Trigger / {lang === 'id' ? 'Mekanisme' : 'Mechanism'}: </span>
-              {fm.mechanism}
-            </div>
-          )}
-          {fm.effect && (
-            <div className="text-sm text-slate-600">
-              <span className="font-bold text-slate-700">{lang === 'id' ? 'Potensi Efek' : 'Potential Effect'}: </span>
-              {fm.effect}
-            </div>
-          )}
-          {fm.notes && (
-            <div className="text-sm bg-amber-50 border border-amber-200 rounded-xl p-3 text-amber-800">
-              <span className="font-bold">PFMA Notes: </span>{fm.notes}
-            </div>
-          )}
+          {fmFields.map((field, i) => {
+            if (!field.value || i < 1) return null; // Skip FM No. (shown in header) and empty values
+            const isNotes = field.label.en.includes('Notes');
+            return (
+              <div key={i} className={isNotes
+                ? 'text-sm bg-amber-50 border border-amber-200 rounded-xl p-3 text-amber-800'
+                : 'text-sm text-slate-600'
+              }>
+                <span className="font-bold text-slate-700">{field.label[lang]}: </span>
+                {field.value}
+              </div>
+            );
+          })}
         </div>
 
-        {/* Assessment sections */}
+        {/* Risk Assessment section */}
         <div className="p-5 space-y-6">
-          {/* RISK ASSESSMENT */}
           <div className="bg-gradient-to-r from-red-50 to-orange-50 border border-red-200 rounded-2xl p-4">
             <div className="flex items-center gap-2 mb-3">
               <Shield size={18} className="text-red-600" />
@@ -195,46 +203,6 @@ export default function AssessmentForm({ fm, existingDraft, onSave, onCancel, re
                 <div className="text-xs text-slate-600 bg-white/70 rounded-lg p-2.5 border border-slate-200">
                   <span className="font-bold">{t(lang, 'assessment.response')}: </span>
                   {riskCell.response[lang]}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* OPPORTUNITY ASSESSMENT */}
-          <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-2xl p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <Sparkles size={18} className="text-purple-600" />
-              <h4 className="font-bold text-purple-800 text-sm uppercase tracking-wider">
-                {t(lang, 'assessment.opp_title')}
-              </h4>
-            </div>
-
-            <LevelPicker
-              title={t(lang, 'assessment.opp_likelihood')}
-              levels={LIKELIHOOD_LEVELS}
-              value={oppL}
-              onChange={readOnly ? () => {} : setOppL}
-              lang={lang}
-            />
-
-            <LevelPicker
-              title={t(lang, 'assessment.positive_consequence')}
-              levels={POSITIVE_CONSEQUENCE_LEVELS}
-              value={posC}
-              onChange={readOnly ? () => {} : setPosC}
-              lang={lang}
-            />
-
-            {oppCell && (
-              <div className="mt-3 space-y-2">
-                <ResultBadge
-                  label={t(lang, 'assessment.opp_result')}
-                  cell={oppCell}
-                  icon={<Sparkles size={22} />}
-                />
-                <div className="text-xs text-slate-600 bg-white/70 rounded-lg p-2.5 border border-slate-200">
-                  <span className="font-bold">{t(lang, 'assessment.response')}: </span>
-                  {oppCell.response[lang]}
                 </div>
               </div>
             )}

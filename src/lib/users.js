@@ -37,7 +37,7 @@ export async function getUserByClerkId(clerkUserId) {
 /**
  * Update user profile preferences.
  */
-export async function updateUserProfile(clerkUserId, { preferredLanguage, professionalRoleKey, experience }) {
+export async function updateUserProfile(clerkUserId, { preferredLanguage, professionalRoleKey, experienceLevel }) {
   const sets = [];
   const params = [clerkUserId];
   let idx = 2;
@@ -50,9 +50,9 @@ export async function updateUserProfile(clerkUserId, { preferredLanguage, profes
     sets.push(`professional_role_key = $${idx++}`);
     params.push(professionalRoleKey);
   }
-  if (experience) {
+  if (experienceLevel) {
     sets.push(`experience_level = $${idx++}`);
-    params.push(experience);
+    params.push(experienceLevel);
   }
 
   if (sets.length === 0) return null;
