@@ -471,40 +471,57 @@ function UploadTab({ session }) {
   const [busy, setBusy] = useState(false);
   const [docInfo, setDocInfo] = useState(null);
   const [err, setErr] = useState('');
-  const fileRef = useRef(null);
+  
+  const [link, setLink] = useState('');
+  const [title, setTitle] = useState('');
 
   useEffect(() => {
     api.getDocumentInfo(session.code).then(setDocInfo).catch(() => {});
   }, [session.code]);
 
-  async function handleUpload(e) {
-    const file = e.target.files[0];
-    if (!file) return;
+  async function handleSave(e) {
+    e.preventDefault();
+    if (!link) return;
     setBusy(true); setErr('');
     try {
-      await api.uploadDocument(session.code, file, file.name.replace('.pdf', ''));
+      await api.uploadDocument(session.code, link, title || 'Reference Material');
       const info = await api.getDocumentInfo(session.code);
       setDocInfo(info);
+      setLink('');
+      setTitle('');
     } catch (e) {
       setErr(e.message);
     }
     setBusy(false);
-    if (fileRef.current) fileRef.current.value = '';
   }
 
   return (
     <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-      <div className="flex items-center gap-2 font-bold text-slate-800 mb-3"><Upload size={18} /> {t(lang, 'upload.title')}</div>
+      <div className="flex items-center gap-2 font-bold text-slate-800 mb-3"><BookOpen size={18} /> {t(lang, 'upload.title')}</div>
+      
       {docInfo && (
-        <div className="bg-teal-50 border border-teal-200 rounded-xl p-3 mb-3 text-sm text-teal-800">
-          <b>{docInfo.title}</b> (v{docInfo.version}) — {Math.round((docInfo.fileSize || 0) / 1024)} KB
-          <br />
-          <a href={api.getDocumentDownloadUrl(session.code)} download className="text-teal-600 underline font-bold">{t(lang, 'guideline.download_material')}</a>
+        <div className="bg-teal-50 border border-teal-200 rounded-xl p-3 mb-4 text-sm text-teal-800">
+          <div className="flex items-center gap-2 mb-1">
+             <CheckCircle2 size={16} className="text-teal-600" />
+             <b>{docInfo.title}</b> (v{docInfo.version})
+          </div>
+          <a href={docInfo.link} target="_blank" rel="noreferrer" className="text-teal-600 underline font-bold truncate block">{t(lang, 'guideline.download_material')}</a>
         </div>
       )}
-      <input ref={fileRef} type="file" accept=".pdf" onChange={handleUpload}
-        className="block w-full text-sm text-slate-600 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:bg-teal-50 file:text-teal-700 file:font-bold hover:file:bg-teal-100" />
-      {busy && <div className="text-sm text-slate-500 mt-2">{t(lang, 'common.saving')}</div>}
+
+      <form onSubmit={handleSave} className="space-y-3">
+        <div>
+           <label className="block text-xs font-bold text-slate-600 mb-1">Document Title (Optional)</label>
+           <input type="text" value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Reference Material" className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-teal-500" />
+        </div>
+        <div>
+           <label className="block text-xs font-bold text-slate-600 mb-1">Google Drive Link (Required)</label>
+           <input type="url" value={link} onChange={e => setLink(e.target.value)} placeholder="https://docs.google.com/..." required className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-teal-500" />
+        </div>
+        <button type="submit" disabled={busy || !link} className="bg-teal-600 hover:bg-teal-700 text-white font-bold px-4 py-2 rounded-xl text-sm transition-colors disabled:opacity-50">
+           {busy ? t(lang, 'common.saving') : 'Save Link'}
+        </button>
+      </form>
       {err && <div className="text-sm text-red-600 mt-2">{err}</div>}
     </div>
   );

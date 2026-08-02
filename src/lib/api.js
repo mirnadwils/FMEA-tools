@@ -129,18 +129,11 @@ export async function getLiveResults(code) {
 
 // ---- Documents ----
 
-export async function uploadDocument(code, file, title) {
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('title', title || 'Bypass Justification');
-
-  const res = await fetch(`${BASE}/sessions/${encodeURIComponent(code)}/documents`, {
+export async function uploadDocument(sessionCode, link, title) {
+  return fetchJSON(`${BASE}/sessions/${encodeURIComponent(sessionCode)}/documents`, {
     method: 'POST',
-    body: formData,
+    body: JSON.stringify({ link, title }),
   });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-  return data;
 }
 
 export async function getDocumentInfo(code) {

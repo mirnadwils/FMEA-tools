@@ -115,10 +115,11 @@ export default function GuidelineTab({ sessionCode, hasDocument }) {
         {hasDocument ? (
           <a
             href={`/api/sessions/${encodeURIComponent(sessionCode)}/documents`}
-            download
+            target="_blank"
+            rel="noreferrer"
             className="inline-flex items-center gap-2 bg-gradient-to-r from-teal-600 to-emerald-600 text-white font-bold px-5 py-2.5 rounded-xl hover:from-teal-700 hover:to-emerald-700 transition-all shadow-sm mt-2"
           >
-            <Download size={16} />
+            <BookOpen size={16} />
             {t(lang, 'guideline.download_material')}
           </a>
         ) : (

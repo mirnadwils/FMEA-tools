@@ -401,8 +401,8 @@ const dict = {
     id: 'Panduan Penilaian',
   },
   'guideline.download_material': {
-    en: 'Download Material',
-    id: 'Unduh Materi',
+    en: 'Open Reference Material',
+    id: 'Buka Materi Referensi',
   },
   'guideline.no_material': {
     en: 'No material uploaded for this session.',
@@ -475,8 +475,8 @@ const dict = {
 
   // Upload
   'upload.title': {
-    en: 'Upload Session Material (PDF)',
-    id: 'Unggah Materi Sesi (PDF)',
+    en: 'Reference Material Link',
+    id: 'Tautan Materi Referensi',
   },
   'upload.btn': {
     en: 'Upload PDF',
