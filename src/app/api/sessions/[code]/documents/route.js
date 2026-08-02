@@ -1,17 +1,15 @@
 import { NextResponse } from 'next/server';
+import { put } from '@vercel/blob';
 import { getAuthenticatedUser, requireAppRole } from '@/lib/auth';
 import { getSessionMembership } from '@/lib/users';
 import { writeAuditLog } from '@/lib/audit';
 import { query } from '@/lib/db';
-import { writeFile, mkdir, readFile } from 'fs/promises';
-import { join } from 'path';
-import { existsSync } from 'fs';
 
-const STORAGE_DIR = join(process.cwd(), '.storage', 'documents');
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
 
 /**
  * POST /api/sessions/[code]/documents — Upload PDF (facilitator only)
+ * Stores the file in Vercel Blob and saves the URL in the database.
  */
 export async function POST(request, { params }) {
   try {
@@ -53,24 +51,34 @@ export async function POST(request, { params }) {
     );
     const newVersion = (existing[0]?.max_ver || 0) + 1;
 
+    // Upload to Vercel Blob BEFORE any database writes
+    const blobPath = `session-documents/${code.toUpperCase()}/v${newVersion}-${Date.now()}.pdf`;
+    let blob;
+    try {
+      blob = await put(blobPath, file, {
+        access: 'public',
+        contentType: 'application/pdf',
+      });
+    } catch (blobErr) {
+      console.error('Vercel Blob upload failed:', blobErr);
+      return NextResponse.json(
+        { error: 'File upload failed. Please check Blob storage configuration.' },
+        { status: 502 }
+      );
+    }
+
     // Deactivate previous versions
     await query(
       'UPDATE session_documents SET is_active = false WHERE session_id = $1',
       [sessionId]
     );
 
-    // Store file locally
-    const storageKey = `session_${code}_v${newVersion}_${Date.now()}.pdf`;
-    await mkdir(STORAGE_DIR, { recursive: true });
-    const buffer = Buffer.from(await file.arrayBuffer());
-    await writeFile(join(STORAGE_DIR, storageKey), buffer);
-
-    // Record in database
+    // Record in database with Blob URL as storage_key
     const rows = await query(
       `INSERT INTO session_documents (session_id, title, storage_key, file_size, uploader_user_id, version)
        VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING *`,
-      [sessionId, title, storageKey, file.size, userId, newVersion]
+      [sessionId, title, blob.url, file.size, userId, newVersion]
     );
 
     await writeAuditLog({
@@ -79,7 +87,7 @@ export async function POST(request, { params }) {
       action: 'document_uploaded',
       entityType: 'session_document',
       entityId: rows[0].id,
-      metadata: { title, version: newVersion, fileSize: file.size },
+      metadata: { title, version: newVersion, fileSize: file.size, blobUrl: blob.url },
     });
 
     return NextResponse.json(rows[0]);
@@ -91,21 +99,17 @@ export async function POST(request, { params }) {
 
 /**
  * GET /api/sessions/[code]/documents — Download active session PDF
- * Only authenticated members can download.
+ * Authorized users are redirected to the stored Vercel Blob URL.
  */
 export async function GET(request, { params }) {
   try {
     const { code } = await params;
-    const { userId } = await getAuthenticatedUser();
+    const { userId, appRole } = await getAuthenticatedUser();
 
-    // Verify membership
+    // Verify membership or facilitator role
     const membership = await getSessionMembership(code, userId);
-    if (!membership) {
-      // Check if facilitator (may not be a member but has role)
-      const { appRole } = await getAuthenticatedUser();
-      if (appRole !== 'facilitator') {
-        return NextResponse.json({ error: 'Not a member of this session' }, { status: 403 });
-      }
+    if (!membership && appRole !== 'facilitator') {
+      return NextResponse.json({ error: 'Not a member of this session' }, { status: 403 });
     }
 
     // Get session
@@ -137,20 +141,8 @@ export async function GET(request, { params }) {
       });
     }
 
-    // Serve the file
-    const filePath = join(STORAGE_DIR, doc.storage_key);
-    if (!existsSync(filePath)) {
-      return NextResponse.json({ error: 'File not found on disk' }, { status: 404 });
-    }
-
-    const fileBuffer = await readFile(filePath);
-    return new NextResponse(fileBuffer, {
-      headers: {
-        'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="${doc.title.replace(/[^a-zA-Z0-9._-]/g, '_')}.pdf"`,
-        'Content-Length': String(fileBuffer.length),
-      },
-    });
+    // Redirect to the Blob URL
+    return NextResponse.redirect(doc.storage_key);
   } catch (error) {
     const status = error.status || 500;
     return NextResponse.json({ error: error.message }, { status });

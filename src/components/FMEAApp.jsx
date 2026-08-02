@@ -47,19 +47,53 @@ function findVal(row, keywords) {
   return key !== undefined ? String(row[key] ?? '').trim() : '';
 }
 
+/** Read a paired _id / _en column set from a row. Returns { id, en }. */
+function findPair(row, baseKeywords) {
+  const idVal = findVal(row, [...baseKeywords, '_id']) || findVal(row, [...baseKeywords, 'id']);
+  const enVal = findVal(row, [...baseKeywords, '_en']) || findVal(row, [...baseKeywords, 'en']);
+  return { id: idVal, en: enVal };
+}
+
 function mapRowToFM(row, idx) {
-  const no = findVal(row, ['fm', 'no']) || String(idx + 1);
+  const no = findVal(row, ['fm', 'no']) || findVal(row, ['fm_no']) || String(idx + 1);
   return {
-    no, category: findVal(row, ['category']), title: findVal(row, ['potential', 'failure']),
-    mechanism: findVal(row, ['trigger']) || findVal(row, ['mechanism']),
-    initiation: findVal(row, ['initiation']), continuation: findVal(row, ['continuation']),
-    progression: findVal(row, ['progression']),
-    detectionMonitoring: findVal(row, ['detection', 'monitoring']),
-    intervention: findVal(row, ['intervention']) || findVal(row, ['controls']),
-    effect: findVal(row, ['effect']), notes: findVal(row, ['notes']),
-    ownerAction: findVal(row, ['owner']),
+    no,
+    category: findPair(row, ['category']),
+    title: findPair(row, ['title']),
+    mechanism: findPair(row, ['mechanism']),
+    initiation: findPair(row, ['initiation']),
+    continuation: findPair(row, ['continuation']),
+    progression: findPair(row, ['progression']),
+    detectionMonitoring: findPair(row, ['detection', 'monitoring']),
+    intervention: findPair(row, ['intervention']),
+    effect: findPair(row, ['effect']),
+    notes: findPair(row, ['notes']),
+    ownerAction: findPair(row, ['owner', 'action']),
   };
 }
+
+/** Validate bilingual pairs on client side. Returns array of error strings. */
+function validateBilingualPairs(fmList) {
+  const errors = [];
+  const pairFields = ['category', 'title', 'mechanism', 'initiation', 'continuation',
+    'progression', 'detectionMonitoring', 'intervention', 'effect', 'notes', 'ownerAction'];
+  for (let i = 0; i < fmList.length; i++) {
+    const fm = fmList[i];
+    for (const key of pairFields) {
+      const pair = fm[key];
+      if (!pair) continue;
+      const hasId = pair.id && pair.id.trim();
+      const hasEn = pair.en && pair.en.trim();
+      if (hasId && !hasEn) {
+        errors.push(`Row ${i + 1} (FM ${fm.no}): "${key}" has ID text but missing EN text.`);
+      } else if (!hasId && hasEn) {
+        errors.push(`Row ${i + 1} (FM ${fm.no}): "${key}" has EN text but missing ID text.`);
+      }
+    }
+  }
+  return errors;
+}
+
 
 function weightedAvg(assessments, riskField, expField) {
   if (!assessments || !assessments.length) return null;
@@ -246,14 +280,14 @@ function FacilitatorSetup({ onBack, onSessionReady }) {
 function ImportTab({ session, onUpdateSession }) {
   const { lang } = useLang();
   const [preview, setPreview] = useState(null);
-  const [fileErr, setFileErr] = useState('');
+  const [fileErrs, setFileErrs] = useState([]); // Array of error strings
   const [busy, setBusy] = useState(false);
   const fileRef = useRef(null);
 
   function handleFile(e) {
     const file = e.target.files[0];
     if (!file) return;
-    setFileErr('');
+    setFileErrs([]);
     const reader = new FileReader();
     reader.onload = (evt) => {
       try {
@@ -261,11 +295,25 @@ function ImportTab({ session, onUpdateSession }) {
         const wb = XLSX.read(data, { type: 'array' });
         const sheet = wb.Sheets[wb.SheetNames[0]];
         const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
-        const parsed = rows.map(mapRowToFM).filter((fm) => fm.title || fm.category);
-        if (!parsed.length) { setFileErr(lang === 'id' ? 'Tidak ada baris valid.' : 'No valid rows found.'); return; }
+        
+        // Map and filter out completely empty rows
+        const parsed = rows.map(mapRowToFM).filter((fm) => fm.title?.id || fm.title?.en || fm.category?.id || fm.category?.en);
+        
+        if (!parsed.length) { 
+          setFileErrs([lang === 'id' ? 'Tidak ada baris valid.' : 'No valid rows found.']); 
+          return; 
+        }
+
+        // Validate bilingual pairs
+        const errors = validateBilingualPairs(parsed);
+        if (errors.length > 0) {
+          setFileErrs(errors);
+          return;
+        }
+
         setPreview(parsed);
-      } catch {
-        setFileErr(lang === 'id' ? 'Gagal membaca file.' : 'Failed to read file.');
+      } catch (e) {
+        setFileErrs([lang === 'id' ? 'Gagal membaca file.' : 'Failed to read file.']);
       }
     };
     reader.readAsArrayBuffer(file);
@@ -273,6 +321,7 @@ function ImportTab({ session, onUpdateSession }) {
 
   async function confirmImport() {
     setBusy(true);
+    setFileErrs([]);
     try {
       await api.importFMs(session.code, preview);
       const data = await api.getFullSession(session.code);
@@ -280,7 +329,9 @@ function ImportTab({ session, onUpdateSession }) {
       setPreview(null);
       if (fileRef.current) fileRef.current.value = '';
     } catch (e) {
-      setFileErr('Import failed: ' + e.message);
+      // Show server-side validation errors if any
+      const msg = typeof e.details === 'object' ? JSON.stringify(e.details) : e.message;
+      setFileErrs(['Import failed: ' + msg]);
     }
     setBusy(false);
   }
@@ -292,7 +343,15 @@ function ImportTab({ session, onUpdateSession }) {
         <p className="text-sm text-slate-500 mb-3">{t(lang, 'import.columns_desc')}</p>
         <input ref={fileRef} type="file" accept=".xlsx,.xls" onChange={handleFile}
           className="block w-full text-sm text-slate-600 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:bg-teal-50 file:text-teal-700 file:font-bold hover:file:bg-teal-100 file:transition-all" />
-        {fileErr && <div className="text-sm text-red-600 mt-2 flex items-center gap-1"><AlertTriangle size={14} /> {fileErr}</div>}
+        
+        {fileErrs.length > 0 && (
+          <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-xl space-y-1">
+            <div className="text-sm font-bold text-red-700 flex items-center gap-1"><AlertTriangle size={15} /> Validation Errors</div>
+            <ul className="text-xs text-red-600 list-disc pl-5">
+              {fileErrs.map((err, idx) => <li key={idx}>{err}</li>)}
+            </ul>
+          </div>
+        )}
       </div>
 
       {preview && (
@@ -301,12 +360,20 @@ function ImportTab({ session, onUpdateSession }) {
           <div className="max-h-80 overflow-y-auto border border-slate-100 rounded-xl">
             <table className="w-full text-xs">
               <thead className="bg-slate-50 sticky top-0"><tr>
-                <th className="p-2 text-left">No</th><th className="p-2 text-left">Category</th><th className="p-2 text-left">Potential Failure Mode</th>
+                <th className="p-2 text-left">No</th>
+                <th className="p-2 text-left">Category (ID)</th>
+                <th className="p-2 text-left">Category (EN)</th>
+                <th className="p-2 text-left">Failure Mode (ID)</th>
+                <th className="p-2 text-left">Failure Mode (EN)</th>
               </tr></thead>
               <tbody>
                 {preview.map((fm, i) => (
                   <tr key={i} className="border-t border-slate-100">
-                    <td className="p-2">{fm.no}</td><td className="p-2">{fm.category}</td><td className="p-2">{fm.title}</td>
+                    <td className="p-2">{fm.no}</td>
+                    <td className="p-2">{fm.category?.id}</td>
+                    <td className="p-2">{fm.category?.en}</td>
+                    <td className="p-2">{fm.title?.id}</td>
+                    <td className="p-2">{fm.title?.en}</td>
                   </tr>
                 ))}
               </tbody>

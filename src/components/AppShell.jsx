@@ -6,7 +6,7 @@ import { Globe, HardHat, Menu, X } from 'lucide-react';
 import { t } from '@/lib/i18n';
 
 // Language context for bilingual support
-const LangContext = createContext({ lang: 'id', setLang: () => {} });
+const LangContext = createContext({ lang: 'id', setLang: () => { } });
 
 export function useLang() {
   return useContext(LangContext);
@@ -34,8 +34,21 @@ export function LangProvider({ children, initialLang = 'id' }) {
 
 export default function AppShell({ sessionName, children }) {
   const { lang, setLang } = useLang();
-  const { user } = useUser();
+  const { user, isLoaded } = useUser();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [profile, setProfile] = useState(null);
+  
+  // Fetch profile to get role and experience
+  useEffect(() => {
+    if (isLoaded && user) {
+      fetch('/api/me')
+        .then(res => res.json())
+        .then(data => {
+          if (!data.error) setProfile(data);
+        })
+        .catch(console.error);
+    }
+  }, [isLoaded, user]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50 flex flex-col">
@@ -44,16 +57,16 @@ export default function AppShell({ sessionName, children }) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between h-14">
           {/* Logo + Brand */}
           <div className="flex items-center gap-3 min-w-0">
-            <div className="flex items-center gap-2">
-              <div className="p-1.5 bg-gradient-to-br from-teal-400 to-emerald-500 rounded-lg shadow-sm">
-                <HardHat size={18} className="text-white" />
+            <div className="flex items-center gap-3">
+              <div className="h-8 w-8 bg-white rounded-lg p-1 overflow-hidden shadow-sm flex items-center justify-center shrink-0">
+                <img src="/logo.png" alt="SGO Logo" className="h-full w-auto object-contain" />
               </div>
               <div className="hidden sm:block">
                 <div className="text-white font-bold text-sm leading-tight tracking-wide">
-                  {t(lang, 'app.company')}
+                  PT Solusi Geotek Optima
                 </div>
-                <div className="text-slate-400 text-[10px] uppercase tracking-widest leading-tight">
-                  {t(lang, 'app.name')}
+                <div className="text-teal-400 text-[10px] uppercase tracking-widest leading-tight font-bold">
+                  FMEA Workshop
                 </div>
               </div>
             </div>
@@ -79,6 +92,18 @@ export default function AppShell({ sessionName, children }) {
               <Globe size={14} />
               <span className="uppercase">{lang === 'id' ? 'EN' : 'ID'}</span>
             </button>
+
+            {/* Profile Info */}
+            {profile && profile.professional_role_key && (
+               <div className="hidden md:flex flex-col items-end justify-center mr-2 text-right">
+                  <div className="text-xs text-white font-bold capitalize">
+                    {profile.professional_role_key.replace('_', ' ')}
+                  </div>
+                  <div className="text-[10px] text-teal-400 uppercase tracking-wider font-semibold">
+                    {profile.experience_level}
+                  </div>
+               </div>
+            )}
 
             {/* Clerk user button */}
             {user && (
@@ -111,7 +136,7 @@ export default function AppShell({ sessionName, children }) {
       <footer className="border-t border-slate-200 bg-white/50 py-3">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between text-xs text-slate-400">
           <span>© {new Date().getFullYear()} PT Solusi Geotek Optima</span>
-          <span className="hidden sm:inline">Merdeka Risk & Opportunity Matrix v1</span>
+          <span className="hidden sm:inline">FMEA Workshop</span>
         </div>
       </footer>
     </div>

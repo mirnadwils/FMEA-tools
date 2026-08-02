@@ -1,11 +1,52 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { getAuthenticatedUser, requireAppRole } from '@/lib/auth';
-import { translateFMFields } from '@/lib/translate';
+import { storeBilingualFields } from '@/lib/translate';
 
 /**
- * POST /api/sessions/[code]/fm — Import failure modes (facilitator only, bulk upsert)
- * Body: { fmList: [{ no, category, title, mechanism, ... }] }
+ * Bilingual field pairs expected from the Excel import.
+ * Each entry maps a DB field name to the camelCase key used in the JSON body.
+ */
+const BILINGUAL_FIELDS = [
+  { dbField: 'category',            bodyKey: 'category' },
+  { dbField: 'title',               bodyKey: 'title' },
+  { dbField: 'mechanism',           bodyKey: 'mechanism' },
+  { dbField: 'initiation',          bodyKey: 'initiation' },
+  { dbField: 'continuation',        bodyKey: 'continuation' },
+  { dbField: 'progression',         bodyKey: 'progression' },
+  { dbField: 'detection_monitoring', bodyKey: 'detectionMonitoring' },
+  { dbField: 'intervention',        bodyKey: 'intervention' },
+  { dbField: 'effect',              bodyKey: 'effect' },
+  { dbField: 'notes',               bodyKey: 'notes' },
+  { dbField: 'owner_action',        bodyKey: 'ownerAction' },
+];
+
+/**
+ * Validate bilingual pairs: if one member of a pair is present while the other is blank,
+ * return an error identifying the row and field.
+ */
+function validateBilingualPairs(fmList) {
+  const errors = [];
+  for (let i = 0; i < fmList.length; i++) {
+    const fm = fmList[i];
+    for (const { bodyKey } of BILINGUAL_FIELDS) {
+      const pair = fm[bodyKey];
+      if (!pair) continue;
+      const hasId = pair.id && pair.id.trim();
+      const hasEn = pair.en && pair.en.trim();
+      if (hasId && !hasEn) {
+        errors.push(`Row ${i + 1} (FM ${fm.no}): "${bodyKey}" has Indonesian text but missing English text.`);
+      } else if (!hasId && hasEn) {
+        errors.push(`Row ${i + 1} (FM ${fm.no}): "${bodyKey}" has English text but missing Indonesian text.`);
+      }
+    }
+  }
+  return errors;
+}
+
+/**
+ * POST /api/sessions/[code]/fm — Import bilingual failure modes (facilitator only)
+ * Body: { fmList: [{ no, category: { id, en }, title: { id, en }, ... }] }
  */
 export async function POST(request, { params }) {
   try {
@@ -19,6 +60,15 @@ export async function POST(request, { params }) {
     if (!fmList || !Array.isArray(fmList)) {
       return NextResponse.json(
         { error: 'fmList array is required' },
+        { status: 400 }
+      );
+    }
+
+    // Validate bilingual pairs before any destructive writes
+    const pairErrors = validateBilingualPairs(fmList);
+    if (pairErrors.length > 0) {
+      return NextResponse.json(
+        { error: 'Bilingual validation failed', details: pairErrors },
         { status: 400 }
       );
     }
@@ -39,6 +89,14 @@ export async function POST(request, { params }) {
     // Insert all failure modes
     const inserted = [];
     for (const fm of fmList) {
+      // Use Indonesian text for the main failure_modes table columns (compatibility)
+      const getIdText = (key) => {
+        const val = fm[key];
+        if (!val) return null;
+        if (typeof val === 'string') return val || null;
+        return val.id || null;
+      };
+
       const rows = await query(
         `INSERT INTO failure_modes
          (session_id, fm_no, category, title, mechanism, initiation, continuation,
@@ -46,17 +104,18 @@ export async function POST(request, { params }) {
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
          RETURNING id, fm_no`,
         [
-          sessionId, fm.no, fm.category || null, fm.title || null,
-          fm.mechanism || null, fm.initiation || null, fm.continuation || null,
-          fm.progression || null, fm.detectionMonitoring || null,
-          fm.intervention || null, fm.effect || null, fm.notes || null,
-          fm.ownerAction || null,
+          sessionId, fm.no,
+          getIdText('category'), getIdText('title'),
+          getIdText('mechanism'), getIdText('initiation'), getIdText('continuation'),
+          getIdText('progression'), getIdText('detectionMonitoring'),
+          getIdText('intervention'), getIdText('effect'), getIdText('notes'),
+          getIdText('ownerAction'),
         ]
       );
       const fmId = rows[0].id;
       inserted.push(rows[0]);
 
-      // Also create default fm_status (locked) if not exists
+      // Create default fm_status (locked) if not exists
       await query(
         `INSERT INTO fm_status (session_id, fm_no, status)
          VALUES ($1, $2, 'locked')
@@ -64,21 +123,17 @@ export async function POST(request, { params }) {
         [sessionId, fm.no]
       );
 
-      // Trigger Translation
-      const fieldsToTranslate = {
-        category: fm.category,
-        title: fm.title,
-        mechanism: fm.mechanism,
-        initiation: fm.initiation,
-        continuation: fm.continuation,
-        progression: fm.progression,
-        detection_monitoring: fm.detectionMonitoring,
-        intervention: fm.intervention,
-        effect: fm.effect,
-        notes: fm.notes,
-        owner_action: fm.ownerAction,
-      };
-      await translateFMFields(fmId, fieldsToTranslate, 'id');
+      // Store bilingual translations from facilitator-provided data
+      const bilingualData = {};
+      for (const { dbField, bodyKey } of BILINGUAL_FIELDS) {
+        const val = fm[bodyKey];
+        if (val && typeof val === 'object') {
+          bilingualData[dbField] = { id: val.id || '', en: val.en || '' };
+        } else if (val && typeof val === 'string') {
+          bilingualData[dbField] = { id: val, en: val };
+        }
+      }
+      await storeBilingualFields(fmId, bilingualData);
     }
 
     return NextResponse.json({ success: true, count: inserted.length });

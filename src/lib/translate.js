@@ -1,83 +1,34 @@
 import { query } from './db';
 
-const TRANSLATE_API_KEY = process.env.GOOGLE_TRANSLATE_API_KEY;
-
 /**
- * Translates a given text using Google Cloud Translation API v2.
- * Falls back gracefully if no API key is provided.
+ * Store facilitator-provided bilingual FM field translations.
+ * No automatic translation — both ID and EN values come from the Excel import.
+ *
+ * @param {number} failureModeId - The failure_modes.id
+ * @param {Object} fields - Map of field_name → { id: string, en: string }
  */
-export async function translateText(text, targetLang) {
-  if (!text || !text.trim()) return '';
-  if (!TRANSLATE_API_KEY) {
-    console.warn('GOOGLE_TRANSLATE_API_KEY is not set. Skipping translation.');
-    return '';
-  }
+export async function storeBilingualFields(failureModeId, fields) {
+  for (const [fieldName, pair] of Object.entries(fields)) {
+    const textId = pair?.id || '';
+    const textEn = pair?.en || '';
 
-  try {
-    const res = await fetch(`https://translation.googleapis.com/language/translate/v2?key=${TRANSLATE_API_KEY}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        q: text,
-        target: targetLang,
-      }),
-    });
+    // Skip if both are empty (intentionally unused field)
+    if (!textId.trim() && !textEn.trim()) continue;
 
-    if (!res.ok) {
-      const errorData = await res.json();
-      console.error('Translation API error:', errorData);
-      return '';
-    }
-
-    const data = await res.json();
-    return data.data?.translations?.[0]?.translatedText || '';
-  } catch (error) {
-    console.error('Translation network error:', error);
-    return '';
-  }
-}
-
-/**
- * Batch translates imported FM fields and stores them in `failure_mode_translations`.
- * The system assumes imported excel files are in Indonesian (id) by default.
- */
-export async function translateFMFields(failureModeId, fields, sourceLang = 'id') {
-  const targetLang = sourceLang === 'id' ? 'en' : 'id';
-
-  for (const [fieldName, sourceText] of Object.entries(fields)) {
-    if (!sourceText || !sourceText.trim()) continue;
-
-    let translatedText = '';
-    let status = 'pending';
-
-    // Attempt translation
-    translatedText = await translateText(sourceText, targetLang);
-    if (translatedText) {
-      status = 'translated';
-    } else {
-      status = 'untranslated'; // Graceful fallback
-    }
-
-    // Insert or update translation record
     await query(
-      `INSERT INTO failure_mode_translations 
-        (failure_mode_id, field_name, source_lang, source_text, text_id, text_en, translation_status, translation_provider, translated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, 'google', NOW())
+      `INSERT INTO failure_mode_translations
+        (failure_mode_id, field_name, source_lang, source_text, text_id, text_en,
+         translation_status, translation_provider, translated_at)
+       VALUES ($1, $2, 'manual', $3, $3, $4, 'provided', 'facilitator', NOW())
        ON CONFLICT (failure_mode_id, field_name) DO UPDATE SET
+        source_lang = 'manual',
         source_text = EXCLUDED.source_text,
         text_id = EXCLUDED.text_id,
         text_en = EXCLUDED.text_en,
-        translation_status = EXCLUDED.translation_status,
+        translation_status = 'provided',
+        translation_provider = 'facilitator',
         translated_at = NOW()`,
-      [
-        failureModeId,
-        fieldName,
-        sourceLang,
-        sourceText,
-        sourceLang === 'id' ? sourceText : translatedText,
-        sourceLang === 'en' ? sourceText : translatedText,
-        status,
-      ]
+      [failureModeId, fieldName, textId, textEn]
     );
   }
 }

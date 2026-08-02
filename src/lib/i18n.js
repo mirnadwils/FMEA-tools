@@ -7,8 +7,8 @@
 const dict = {
   // App Shell / Header
   'app.name': {
-    en: 'FMEA Workshop Tool',
-    id: 'Alat Workshop FMEA',
+    en: 'FMEA Workshop',
+    id: 'FMEA Workshop',
   },
   'app.company': {
     en: 'PT Solusi Geotek Optima',
@@ -21,8 +21,8 @@ const dict = {
 
   // Landing
   'landing.title': {
-    en: 'FMEA Workshop — Merdeka Matrix',
-    id: 'Workshop FMEA — Matriks Merdeka',
+    en: 'FMEA Workshop',
+    id: 'FMEA Workshop',
   },
   'landing.subtitle': {
     en: 'Collaborative risk assessment for dam safety failure modes.',
@@ -443,8 +443,8 @@ const dict = {
     id: 'Import Daftar Failure Mode (.xlsx)',
   },
   'import.columns_desc': {
-    en: 'Auto-recognized columns: FM No., Category, Potential Failure Mode, Main Trigger / Detailed Mechanism, Initiation, Continuation, Progression, Potential Detection / Monitoring, Possible Intervention / Risk Controls, Potential Effect / Consequence, PFMA Notes / Workshop Questions, Owner / Action.',
-    id: 'Kolom yang dikenali otomatis: FM No., Category, Potential Failure Mode, Main Trigger / Detailed Mechanism, Initiation, Continuation, Progression, Potential Detection / Monitoring, Possible Intervention / Risk Controls, Potential Effect / Consequence, PFMA Notes / Workshop Questions, Owner / Action.',
+    en: 'Auto-recognized paired columns (e.g., category_id and category_en): FM No., Category, Potential Failure Mode, Main Trigger / Detailed Mechanism, Initiation, Continuation, Progression, Potential Detection / Monitoring, Possible Intervention / Risk Controls, Potential Effect / Consequence, PFMA Notes / Workshop Questions, Owner / Action.',
+    id: 'Kolom pasangan yang dikenali otomatis (mis. category_id dan category_en): FM No., Category, Potential Failure Mode, Main Trigger / Detailed Mechanism, Initiation, Continuation, Progression, Potential Detection / Monitoring, Possible Intervention / Risk Controls, Potential Effect / Consequence, PFMA Notes / Workshop Questions, Owner / Action.',
   },
   'import.preview': {
     en: 'Preview',
