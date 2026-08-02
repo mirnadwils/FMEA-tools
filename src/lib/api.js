@@ -78,10 +78,10 @@ export async function getFMStatus(code) {
 
 // ---- Membership (Clerk-authenticated) ----
 
-export async function joinMembership(code, { professionalRoleKey, customRoleText, experienceLevel }) {
+export async function joinMembership(code) {
   return fetchJSON(`${BASE}/sessions/${encodeURIComponent(code)}/membership`, {
     method: 'POST',
-    body: JSON.stringify({ professionalRoleKey, customRoleText, experienceLevel }),
+    body: JSON.stringify({}),
   });
 }
 

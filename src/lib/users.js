@@ -91,14 +91,23 @@ export async function joinSessionAsMember(sessionCode, clerkUserId, { profession
   }
   const sessionId = sessions[0].id;
 
+  // Attempt insert; on conflict preserve existing membership values
   const rows = await query(
     `INSERT INTO session_members (session_id, clerk_user_id, professional_role_key, custom_role_text, experience_level)
      VALUES ($1, $2, $3, $4, $5)
-     ON CONFLICT (session_id, clerk_user_id) DO UPDATE
-     SET professional_role_key = $3, custom_role_text = $4, experience_level = $5
+     ON CONFLICT (session_id, clerk_user_id) DO NOTHING
      RETURNING *`,
     [sessionId, clerkUserId, professionalRoleKey || null, customRoleText || null, experienceLevel || 'beginner']
   );
+
+  // If insert was skipped (repeat join), return existing membership
+  if (rows.length === 0) {
+    const existing = await query(
+      'SELECT * FROM session_members WHERE session_id = $1 AND clerk_user_id = $2',
+      [sessionId, clerkUserId]
+    );
+    return existing[0];
+  }
 
   return rows[0];
 }

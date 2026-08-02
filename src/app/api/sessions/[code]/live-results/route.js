@@ -61,12 +61,28 @@ export async function GET(request, { params }) {
     const aggregated = [];
     for (const [fmNo, assessments] of Object.entries(fmData)) {
       let sumWRL = 0, sumWNC = 0, sumW = 0;
+
+      // Unweighted distribution counts
+      const likelihoodDistribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+      const consequenceDistribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+      // 5×5 combination matrix: combinationDistribution[likelihood][consequence]
+      const combinationDistribution = {};
+      for (let l = 1; l <= 5; l++) {
+        combinationDistribution[l] = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+      }
+
       for (const a of assessments) {
         const w = EXPERIENCE_WEIGHT[a.experience] || 1;
         sumWRL += a.riskLikelihood * w;
         sumWNC += a.negativeConsequence * w;
         sumW += w;
+
+        // Tally unweighted distributions
+        likelihoodDistribution[a.riskLikelihood] = (likelihoodDistribution[a.riskLikelihood] || 0) + 1;
+        consequenceDistribution[a.negativeConsequence] = (consequenceDistribution[a.negativeConsequence] || 0) + 1;
+        combinationDistribution[a.riskLikelihood][a.negativeConsequence] += 1;
       }
+
       const avgRL = sumW ? sumWRL / sumW : null;
       const avgNC = sumW ? sumWNC / sumW : null;
       const rRL = avgRL != null ? Math.min(5, Math.max(1, Math.round(avgRL))) : null;
@@ -82,6 +98,9 @@ export async function GET(request, { params }) {
         roundedConsequence: rNC,
         riskScore: riskCell?.score || null,
         riskLevel: riskCell?.level || null,
+        likelihoodDistribution,
+        consequenceDistribution,
+        combinationDistribution,
       });
     }
 

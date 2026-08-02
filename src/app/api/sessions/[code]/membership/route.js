@@ -1,27 +1,31 @@
 import { NextResponse } from 'next/server';
 import { getAuthenticatedUser } from '@/lib/auth';
-import { joinSessionAsMember, getSessionMembers, getSessionMembership } from '@/lib/users';
+import { getUserByClerkId, joinSessionAsMember, getSessionMembers, getSessionMembership } from '@/lib/users';
 import { writeAuditLog } from '@/lib/audit';
 import { query } from '@/lib/db';
 
 /**
- * POST /api/sessions/[code]/membership — Join session as authenticated member
- * Body: { professionalRoleKey, customRoleText, experienceLevel }
+ * POST /api/sessions/[code]/membership — Join session as authenticated member.
+ * Profile fields are read from the persisted Neon user record, not the request body.
  */
 export async function POST(request, { params }) {
   try {
     const { code } = await params;
     const { userId, appRole } = await getAuthenticatedUser();
-    const body = await request.json();
 
-    if (!body.experienceLevel) {
-      return NextResponse.json({ error: 'experienceLevel is required' }, { status: 400 });
+    // Read persisted profile from Neon
+    const profile = await getUserByClerkId(userId);
+    if (!profile || !profile.professional_role_key || !profile.experience_level) {
+      return NextResponse.json(
+        { error: 'Your profile is incomplete. Please set your professional role and experience level in your profile before joining a session.' },
+        { status: 400 }
+      );
     }
 
     const member = await joinSessionAsMember(code, userId, {
-      professionalRoleKey: body.professionalRoleKey || null,
-      customRoleText: body.customRoleText || null,
-      experienceLevel: body.experienceLevel,
+      professionalRoleKey: profile.professional_role_key,
+      customRoleText: profile.custom_role_text || null,
+      experienceLevel: profile.experience_level,
     });
 
     // Get session ID for audit
@@ -33,7 +37,7 @@ export async function POST(request, { params }) {
         action: 'member_joined',
         entityType: 'session_member',
         entityId: member.id,
-        metadata: { role: body.professionalRoleKey, experience: body.experienceLevel },
+        metadata: { role: profile.professional_role_key, experience: profile.experience_level },
       });
     }
 

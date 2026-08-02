@@ -471,8 +471,13 @@ function ResultsTab({ session, liveData, lang }) {
       </div>
 
       <div className="space-y-3">
-        {sorted.map(({ fm, count, roundedLikelihood, roundedConsequence, riskScore, riskLevel }) => {
+        {sorted.map(({ fm, count, avgRiskLikelihood, avgNegativeConsequence, roundedLikelihood, roundedConsequence, riskScore, riskLevel, likelihoodDistribution, consequenceDistribution, combinationDistribution }) => {
           const riskCell = roundedLikelihood && roundedConsequence ? getRiskCell(roundedLikelihood, roundedConsequence) : null;
+
+          // Format data for recharts
+          const lData = likelihoodDistribution ? Object.keys(likelihoodDistribution).map(k => ({ name: k, count: likelihoodDistribution[k] })) : [];
+          const cData = consequenceDistribution ? Object.keys(consequenceDistribution).map(k => ({ name: k, count: consequenceDistribution[k] })) : [];
+
           return (
             <div key={fm.no} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
               <div className="flex items-start justify-between gap-3 flex-wrap">
@@ -486,15 +491,90 @@ function ResultsTab({ session, liveData, lang }) {
                 </div>
                 <div className="flex gap-2 shrink-0">
                   {riskCell && (
-                    <div className="text-center px-3 py-1.5 rounded-xl" style={{ backgroundColor: riskCell.bgColor, color: riskCell.textColor }}>
-                      <div className="text-[10px] font-bold uppercase flex items-center gap-1"><Shield size={10} /> Risk</div>
-                      <div className="text-lg font-extrabold leading-tight">{riskCell.score}</div>
-                      <div className="text-[10px] font-bold">{riskCell.level}</div>
+                    <div className="flex gap-2 text-center">
+                      <div className="px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200">
+                        <div className="text-[10px] font-bold uppercase text-slate-500">{t(lang, 'results.weighted_avg')}</div>
+                        <div className="text-sm font-bold text-slate-700">L: {avgRiskLikelihood} <span className="opacity-50">|</span> C: {avgNegativeConsequence}</div>
+                      </div>
+                      <div className="px-3 py-1.5 rounded-xl" style={{ backgroundColor: riskCell.bgColor, color: riskCell.textColor }}>
+                        <div className="text-[10px] font-bold uppercase flex items-center gap-1 justify-center"><Shield size={10} /> {t(lang, 'results.rounded')}</div>
+                        <div className="text-lg font-extrabold leading-tight">{riskCell.score}</div>
+                        <div className="text-[10px] font-bold">{riskCell.level}</div>
+                      </div>
                     </div>
                   )}
                 </div>
               </div>
               {count === 0 && <div className="text-sm text-slate-400 italic mt-2">{t(lang, 'results.no_data')}</div>}
+              
+              {count > 0 && likelihoodDistribution && (
+                <div className="mt-6 pt-4 border-t border-slate-100 grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {/* Likelihood Chart */}
+                  <div className="space-y-2">
+                    <div className="text-xs font-bold text-slate-600 uppercase tracking-wider">{t(lang, 'results.likelihood_dist')}</div>
+                    <div className="h-40">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={lData} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                          <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} />
+                          <YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} />
+                          <Tooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                          <Bar dataKey="count" fill="#0ea5e9" radius={[4, 4, 0, 0]} name={t(lang, 'results.count')} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+
+                  {/* Consequence Chart */}
+                  <div className="space-y-2">
+                    <div className="text-xs font-bold text-slate-600 uppercase tracking-wider">{t(lang, 'results.consequence_dist')}</div>
+                    <div className="h-40">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={cData} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                          <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} />
+                          <YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} />
+                          <Tooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                          <Bar dataKey="count" fill="#f43f5e" radius={[4, 4, 0, 0]} name={t(lang, 'results.count')} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+
+                  {/* Combination Heatmap */}
+                  <div className="space-y-2">
+                    <div className="text-xs font-bold text-slate-600 uppercase tracking-wider">{t(lang, 'results.combination_heatmap')}</div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-[10px] text-center border-collapse">
+                        <thead>
+                          <tr>
+                            <th className="font-normal text-slate-400 pb-1">L \ C</th>
+                            {[1, 2, 3, 4, 5].map(c => <th key={c} className="font-normal text-slate-500 pb-1 w-6">{c}</th>)}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {[1, 2, 3, 4, 5].map(l => (
+                            <tr key={l}>
+                              <th className="font-normal text-slate-500 pr-2 w-6">{l}</th>
+                              {[1, 2, 3, 4, 5].map(c => {
+                                const val = combinationDistribution[l]?.[c] || 0;
+                                const hasVal = val > 0;
+                                return (
+                                  <td key={c} className="p-0.5">
+                                    <div className={`w-full py-1 rounded-sm border ${hasVal ? 'bg-amber-100 border-amber-300 text-amber-900 font-bold' : 'bg-slate-50 border-slate-100 text-slate-300'}`}>
+                                      {val}
+                                    </div>
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           );
         })}
@@ -764,23 +844,20 @@ function FacilitatorDashboard({ session, onUpdateSession, onExit }) {
 function ParticipantJoin({ onBack, onJoined }) {
   const { lang } = useLang();
   const [code, setCode] = useState('');
-  const [roleKey, setRoleKey] = useState('');
-  const [experience, setExperience] = useState('');
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
 
   async function join() {
     const c = code.trim().toUpperCase();
     if (!c) { setErr(lang === 'id' ? 'Masukkan kode sesi.' : 'Enter session code.'); return; }
-    if (!roleKey) { setErr(lang === 'id' ? 'Pilih role Anda.' : 'Select your role.'); return; }
-    if (!experience) { setErr(lang === 'id' ? 'Pilih level pengalaman.' : 'Select experience level.'); return; }
     setBusy(true); setErr('');
     try {
       const sessionData = await api.getFullSession(c);
-      await api.joinMembership(c, { professionalRoleKey: roleKey, experienceLevel: experience });
+      await api.joinMembership(c);
       onJoined({ session: sessionData.session });
     } catch (e) {
-      setErr(lang === 'id' ? 'Kode sesi tidak ditemukan.' : 'Session code not found.');
+      // Surface server error message (e.g. missing profile) instead of generic text
+      setErr(e.message || (lang === 'id' ? 'Gagal bergabung sesi.' : 'Failed to join session.'));
     }
     setBusy(false);
   }
@@ -795,23 +872,7 @@ function ParticipantJoin({ onBack, onJoined }) {
           <input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} maxLength={6} placeholder={t(lang, 'session.code_placeholder')}
             className="w-full mt-1 px-3 py-2.5 border border-slate-300 rounded-xl text-lg tracking-widest font-mono text-center text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-teal-400" />
         </div>
-        <div>
-          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">{t(lang, 'profile.role')}</label>
-          <select value={roleKey} onChange={(e) => setRoleKey(e.target.value)}
-            className="w-full mt-1 px-3 py-2.5 border border-slate-300 rounded-xl text-sm bg-white text-slate-900 focus:ring-2 focus:ring-teal-400">
-            <option value="">{lang === 'id' ? '-- Pilih Role --' : '-- Select Role --'}</option>
-            {PROFESSIONAL_ROLES.map((r) => <option key={r.key} value={r.key}>{r.label[lang]}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">{t(lang, 'profile.experience')}</label>
-          <select value={experience} onChange={(e) => setExperience(e.target.value)}
-            className="w-full mt-1 px-3 py-2.5 border border-slate-300 rounded-xl text-sm bg-white text-slate-900 focus:ring-2 focus:ring-teal-400">
-            <option value="">{lang === 'id' ? '-- Pilih Pengalaman --' : '-- Select Experience --'}</option>
-            {EXPERIENCE_LEVELS.map((exp) => <option key={exp.key} value={exp.key}>{exp.label[lang]} — {exp.description[lang]}</option>)}
-          </select>
-        </div>
-        {err && <div className="text-sm text-red-600 flex items-center gap-1"><AlertTriangle size={14} /> {err}</div>}
+        {err && <div className="text-sm text-red-600 flex items-start gap-1"><AlertTriangle size={14} className="mt-0.5 shrink-0" /> {err}</div>}
         <button disabled={busy} onClick={join}
           className="w-full bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white font-bold py-2.5 rounded-xl flex items-center justify-center gap-2 shadow-sm transition-all">
           <Users size={17} /> {busy ? t(lang, 'common.connecting') : t(lang, 'session.join_btn')}

@@ -362,6 +362,38 @@ const dict = {
     en: 'No assessments yet.',
     id: 'Belum ada penilaian masuk.',
   },
+  'results.likelihood_dist': {
+    en: 'Likelihood Distribution',
+    id: 'Distribusi Likelihood',
+  },
+  'results.consequence_dist': {
+    en: 'Consequence Distribution',
+    id: 'Distribusi Consequence',
+  },
+  'results.combination_heatmap': {
+    en: 'Likelihood × Consequence Heatmap',
+    id: 'Heatmap Likelihood × Consequence',
+  },
+  'results.weighted_avg': {
+    en: 'Weighted Avg',
+    id: 'Rata² Tertimbang',
+  },
+  'results.rounded': {
+    en: 'Rounded',
+    id: 'Dibulatkan',
+  },
+  'results.rating': {
+    en: 'Rating',
+    id: 'Rating',
+  },
+  'results.count': {
+    en: 'Count',
+    id: 'Jumlah',
+  },
+  'error.profile_incomplete': {
+    en: 'Your profile is incomplete. Please set your professional role and experience level in your profile before joining.',
+    id: 'Profil Anda belum lengkap. Silakan atur role profesional dan tingkat pengalaman di profil Anda sebelum bergabung.',
+  },
 
   // Guideline
   'guideline.title': {
