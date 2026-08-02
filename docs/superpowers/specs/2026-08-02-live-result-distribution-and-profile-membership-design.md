@@ -20,6 +20,10 @@ For every failure mode with complete saved Risk drafts, the facilitator-only Liv
 
 Only drafts that contain both `risk_likelihood` and `negative_consequence` count toward any distribution. No response can be attributed to a member, profile, name, email, or other personally identifying data.
 
+The final Likelihood and Consequence ratings use an experience-weighted average, not a simple average. The weight mapping is Beginner = 1, Experienced = 2, and Expert = 3. For each rating, the system computes `sum(rating × experienceWeight) / sum(experienceWeight)`, then rounds the result to the nearest whole rating from 1 through 5 before looking up the Merdeka risk cell. The existing display of the precise weighted average remains available for audit.
+
+For example, three Likelihood responses of Beginner = 5, Beginner = 5, and Expert = 2 produce a simple average of `(5 + 5 + 2) / 3 = 4.0`, which would round to 4. The required weighted average is `(5 × 1 + 5 × 1 + 2 × 3) / (1 + 1 + 3) = 16 / 5 = 3.2`, which rounds to 3. Therefore, the Expert response has three times the influence of a Beginner response on the final rating, while the anonymous distribution still reports the unweighted count of selections: two choices of 5 and one choice of 2.
+
 The facilitator Results tab renders, for each failure mode:
 
 1. Existing aggregate-risk summary.
