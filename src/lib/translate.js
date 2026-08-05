@@ -19,9 +19,9 @@ export async function storeBilingualFields(failureModeId, fields) {
       `INSERT INTO failure_mode_translations
         (failure_mode_id, field_name, source_lang, source_text, text_id, text_en,
          translation_status, translation_provider, translated_at)
-       VALUES ($1, $2, 'manual', $3, $3, $4, 'provided', 'facilitator', NOW())
+       VALUES ($1, $2, 'both', $3, $3, $4, 'provided', 'facilitator', NOW())
        ON CONFLICT (failure_mode_id, field_name) DO UPDATE SET
-        source_lang = 'manual',
+        source_lang = 'both',
         source_text = EXCLUDED.source_text,
         text_id = EXCLUDED.text_id,
         text_en = EXCLUDED.text_en,

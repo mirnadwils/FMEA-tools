@@ -196,7 +196,7 @@ export async function runMigrations() {
        id SERIAL PRIMARY KEY,
        failure_mode_id INTEGER REFERENCES failure_modes(id) ON DELETE CASCADE,
        field_name TEXT NOT NULL,
-       source_lang VARCHAR(5) NOT NULL,
+       source_lang VARCHAR(10) NOT NULL,
        source_text TEXT NOT NULL,
        text_id TEXT,
        text_en TEXT,
@@ -205,6 +205,9 @@ export async function runMigrations() {
        translated_at TIMESTAMPTZ,
        UNIQUE(failure_mode_id, field_name)
      )`,
+
+    // Widen source_lang for existing databases where it was created as VARCHAR(5)
+    `ALTER TABLE failure_mode_translations ALTER COLUMN source_lang TYPE VARCHAR(10)`,
   ];
 
   const results = [];
