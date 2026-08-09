@@ -1,9 +1,10 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { UserButton, useUser } from '@clerk/nextjs';
-import { Globe, HardHat, Menu, X } from 'lucide-react';
-import { t } from '@/lib/i18n';
+import { Globe, HardHat, Menu, X, ChevronDown, Save, CheckCircle2 } from 'lucide-react';
+import { t, PROFESSIONAL_ROLES, EXPERIENCE_LEVELS } from '@/lib/i18n';
+import { updateProfile } from '@/lib/api';
 
 // Language context for bilingual support
 const LangContext = createContext({ lang: 'id', setLang: () => { } });
@@ -37,6 +38,12 @@ export default function AppShell({ sessionName, children }) {
   const { user, isLoaded } = useUser();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profile, setProfile] = useState(null);
+  const [showProfileEdit, setShowProfileEdit] = useState(false);
+  const [editRole, setEditRole] = useState('');
+  const [editExperience, setEditExperience] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const dropdownRef = useRef(null);
   
   // Fetch profile to get role and experience
   useEffect(() => {
@@ -49,6 +56,61 @@ export default function AppShell({ sessionName, children }) {
         .catch(console.error);
     }
   }, [isLoaded, user]);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setShowProfileEdit(false);
+      }
+    }
+    if (showProfileEdit) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showProfileEdit]);
+
+  function openProfileEdit() {
+    setEditRole(profile?.professional_role_key || '');
+    setEditExperience(profile?.experience_level || '');
+    setSaved(false);
+    setShowProfileEdit(true);
+  }
+
+  async function handleSaveProfile() {
+    if (!editRole || !editExperience) return;
+    setSaving(true);
+    try {
+      const updated = await updateProfile({
+        professionalRoleKey: editRole,
+        experienceLevel: editExperience,
+      });
+      setProfile(prev => ({
+        ...prev,
+        professional_role_key: editRole,
+        experience_level: editExperience,
+      }));
+      setSaved(true);
+      setTimeout(() => {
+        setShowProfileEdit(false);
+        setSaved(false);
+      }, 1200);
+    } catch (e) {
+      alert(e.message);
+    }
+    setSaving(false);
+  }
+
+  // Format role key for display
+  const displayRole = profile?.professional_role_key
+    ? PROFESSIONAL_ROLES.find(r => r.key === profile.professional_role_key)?.label[lang]
+      || profile.professional_role_key.replace(/_/g, ' ')
+    : null;
+
+  const displayExp = profile?.experience_level
+    ? EXPERIENCE_LEVELS.find(e => e.key === profile.experience_level)?.label[lang]
+      || profile.experience_level
+    : null;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50 flex flex-col">
@@ -81,7 +143,7 @@ export default function AppShell({ sessionName, children }) {
             )}
           </div>
 
-          {/* Right side: Language + User */}
+          {/* Right side: Language + Profile + User */}
           <div className="flex items-center gap-2">
             {/* Language toggle */}
             <button
@@ -93,16 +155,98 @@ export default function AppShell({ sessionName, children }) {
               <span className="uppercase">{lang === 'id' ? 'EN' : 'ID'}</span>
             </button>
 
-            {/* Profile Info */}
+            {/* Profile Info — Clickable to edit */}
             {profile && profile.professional_role_key && (
-               <div className="hidden md:flex flex-col items-end justify-center mr-2 text-right">
-                  <div className="text-xs text-white font-bold capitalize">
-                    {profile.professional_role_key.replace('_', ' ')}
+              <div className="relative" ref={dropdownRef}>
+                <button
+                  onClick={openProfileEdit}
+                  className="hidden md:flex flex-col items-end justify-center mr-2 text-right px-2.5 py-1 rounded-lg hover:bg-slate-800 transition-all cursor-pointer group"
+                  title={lang === 'id' ? 'Klik untuk ubah profil' : 'Click to edit profile'}
+                >
+                  <div className="text-xs text-white font-bold capitalize flex items-center gap-1">
+                    {displayRole}
+                    <ChevronDown size={10} className="text-slate-400 group-hover:text-teal-400 transition-colors" />
                   </div>
                   <div className="text-[10px] text-teal-400 uppercase tracking-wider font-semibold">
-                    {profile.experience_level}
+                    {displayExp}
                   </div>
-               </div>
+                </button>
+
+                {/* Edit Dropdown */}
+                {showProfileEdit && (
+                  <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-slate-200 p-5 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <h4 className="font-bold text-slate-800 text-sm mb-4">
+                      {lang === 'id' ? 'Edit Profil' : 'Edit Profile'}
+                    </h4>
+
+                    {/* Role Selector */}
+                    <div className="mb-4">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        {t(lang, 'profile.role')}
+                      </label>
+                      <select
+                        value={editRole}
+                        onChange={(e) => setEditRole(e.target.value)}
+                        className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-xl text-sm bg-white text-slate-900 focus:ring-2 focus:ring-teal-400 focus:border-teal-400 transition-all"
+                      >
+                        <option value="">{lang === 'id' ? '-- Pilih --' : '-- Select --'}</option>
+                        {PROFESSIONAL_ROLES.map((r) => (
+                          <option key={r.key} value={r.key}>{r.label[lang]}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Experience Level */}
+                    <div className="mb-4">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        {t(lang, 'profile.experience')}
+                      </label>
+                      <div className="mt-1.5 space-y-1.5">
+                        {EXPERIENCE_LEVELS.map((exp) => (
+                          <label
+                            key={exp.key}
+                            className={`flex items-center gap-2.5 p-2.5 rounded-xl border cursor-pointer transition-all text-sm ${
+                              editExperience === exp.key
+                                ? 'border-teal-400 bg-teal-50 ring-1 ring-teal-200'
+                                : 'border-slate-200 hover:border-slate-300'
+                            }`}
+                          >
+                            <input
+                              type="radio"
+                              name="header_exp"
+                              value={exp.key}
+                              checked={editExperience === exp.key}
+                              onChange={(e) => setEditExperience(e.target.value)}
+                              className="accent-teal-600"
+                            />
+                            <div className="flex-1">
+                              <span className="font-semibold text-slate-800">{exp.label[lang]}</span>
+                              <span className="text-[10px] text-slate-400 ml-1.5">
+                                ({lang === 'id' ? 'Bobot' : 'Weight'}: {exp.weight})
+                              </span>
+                            </div>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Save */}
+                    <button
+                      disabled={saving || !editRole || !editExperience}
+                      onClick={handleSaveProfile}
+                      className="w-full bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white font-bold py-2 rounded-xl flex items-center justify-center gap-2 text-sm transition-all disabled:opacity-50"
+                    >
+                      {saved ? (
+                        <><CheckCircle2 size={14} /> {lang === 'id' ? 'Tersimpan!' : 'Saved!'}</>
+                      ) : saving ? (
+                        t(lang, 'common.saving')
+                      ) : (
+                        <><Save size={14} /> {lang === 'id' ? 'Simpan' : 'Save'}</>
+                      )}
+                    </button>
+                  </div>
+                )}
+              </div>
             )}
 
             {/* Clerk user button */}
