@@ -144,7 +144,7 @@ function Landing({ onPickFacilitator, onPickParticipant, user }) {
       <div className="max-w-3xl w-full">
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 text-teal-700 font-bold text-sm tracking-wide uppercase mb-2">
-            <HardHat size={18} /> SGO Geotechnical Workshop Tools
+            <HardHat size={18} /> SGO FMEA Workshop Tools
           </div>
           <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-800 leading-tight">
             {t(lang, 'landing.title')}
@@ -283,13 +283,13 @@ function ImportTab({ session, onUpdateSession }) {
         const wb = XLSX.read(data, { type: 'array' });
         const sheet = wb.Sheets[wb.SheetNames[0]];
         const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
-        
+
         // Map and filter out completely empty rows
         const parsed = rows.map(mapRowToFM).filter((fm) => fm.title?.en || fm.category?.en);
-        
-        if (!parsed.length) { 
-          setFileErrs([lang === 'id' ? 'Tidak ada baris valid.' : 'No valid rows found.']); 
-          return; 
+
+        if (!parsed.length) {
+          setFileErrs([lang === 'id' ? 'Tidak ada baris valid.' : 'No valid rows found.']);
+          return;
         }
 
         setPreview(parsed);
@@ -324,7 +324,7 @@ function ImportTab({ session, onUpdateSession }) {
         <p className="text-sm text-slate-500 mb-3">{t(lang, 'import.columns_desc')}</p>
         <input ref={fileRef} type="file" accept=".xlsx,.xls" onChange={handleFile}
           className="block w-full text-sm text-slate-600 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:bg-teal-50 file:text-teal-700 file:font-bold hover:file:bg-teal-100 file:transition-all" />
-        
+
         {fileErrs.length > 0 && (
           <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-xl space-y-1">
             <div className="text-sm font-bold text-red-700 flex items-center gap-1"><AlertTriangle size={15} /> Validation Errors</div>
@@ -448,12 +448,12 @@ function UploadTab({ session }) {
   const [busy, setBusy] = useState(false);
   const [docInfo, setDocInfo] = useState(null);
   const [err, setErr] = useState('');
-  
+
   const [link, setLink] = useState('');
   const [title, setTitle] = useState('');
 
   useEffect(() => {
-    api.getDocumentInfo(session.code).then(setDocInfo).catch(() => {});
+    api.getDocumentInfo(session.code).then(setDocInfo).catch(() => { });
   }, [session.code]);
 
   async function handleSave(e) {
@@ -475,12 +475,12 @@ function UploadTab({ session }) {
   return (
     <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
       <div className="flex items-center gap-2 font-bold text-slate-800 mb-3"><BookOpen size={18} /> {t(lang, 'upload.title')}</div>
-      
+
       {docInfo && (
         <div className="bg-teal-50 border border-teal-200 rounded-xl p-3 mb-4 text-sm text-teal-800">
           <div className="flex items-center gap-2 mb-1">
-             <CheckCircle2 size={16} className="text-teal-600" />
-             <b>{docInfo.title}</b> (v{docInfo.version})
+            <CheckCircle2 size={16} className="text-teal-600" />
+            <b>{docInfo.title}</b> (v{docInfo.version})
           </div>
           <a href={docInfo.link} target="_blank" rel="noreferrer" className="text-teal-600 underline font-bold truncate block">{t(lang, 'guideline.download_material')}</a>
         </div>
@@ -488,15 +488,15 @@ function UploadTab({ session }) {
 
       <form onSubmit={handleSave} className="space-y-3">
         <div>
-           <label className="block text-xs font-bold text-slate-600 mb-1">Document Title (Optional)</label>
-           <input type="text" value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Reference Material" className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-teal-500" />
+          <label className="block text-xs font-bold text-slate-600 mb-1">Document Title (Optional)</label>
+          <input type="text" value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Reference Material" className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-teal-500" />
         </div>
         <div>
-           <label className="block text-xs font-bold text-slate-600 mb-1">Google Drive Link (Required)</label>
-           <input type="url" value={link} onChange={e => setLink(e.target.value)} placeholder="https://docs.google.com/..." required className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-teal-500" />
+          <label className="block text-xs font-bold text-slate-600 mb-1">Google Drive Link (Required)</label>
+          <input type="url" value={link} onChange={e => setLink(e.target.value)} placeholder="https://docs.google.com/..." required className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-teal-500" />
         </div>
         <button type="submit" disabled={busy || !link} className="bg-teal-600 hover:bg-teal-700 text-white font-bold px-4 py-2 rounded-xl text-sm transition-colors disabled:opacity-50">
-           {busy ? t(lang, 'common.saving') : 'Save Link'}
+          {busy ? t(lang, 'common.saving') : 'Save Link'}
         </button>
       </form>
       {err && <div className="text-sm text-red-600 mt-2">{err}</div>}
@@ -567,7 +567,7 @@ function ResultsTab({ session, liveData, lang }) {
                 </div>
               </div>
               {count === 0 && <div className="text-sm text-slate-400 italic mt-2">{t(lang, 'results.no_data')}</div>}
-              
+
               {count > 0 && likelihoodDistribution && (
                 <div className="mt-6 pt-4 border-t border-slate-100 grid grid-cols-1 lg:grid-cols-3 gap-6">
                   {/* Likelihood Chart */}
@@ -788,16 +788,16 @@ function TranslationReviewTab({ session, onUpdateSession }) {
                 <Save size={16} /> {busy ? 'Saving...' : (saved ? 'Saved!' : 'Save Edits')}
               </button>
             </div>
-            
+
             <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
               {fieldsToReview.map((field) => {
                 const val = activeFm[field.key];
                 if (!val || typeof val !== 'object' || !val.id) return null; // Only show fields that have bilingual data
-                
+
                 return (
                   <div key={field.key} className="bg-slate-50 rounded-xl p-3 border border-slate-200">
                     <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">{field.label}</div>
-                    
+
                     <div className="grid md:grid-cols-2 gap-3">
                       <div>
                         <div className="text-[10px] font-bold text-slate-400 mb-1">ID (Source)</div>
@@ -853,7 +853,7 @@ function FacilitatorDashboard({ session, onUpdateSession, onExit }) {
   }, [refresh]);
 
   function copyCode() {
-    navigator.clipboard?.writeText(session.code).catch(() => {});
+    navigator.clipboard?.writeText(session.code).catch(() => { });
     setCopied(true); setTimeout(() => setCopied(false), 1500);
   }
 
@@ -970,7 +970,7 @@ function ParticipantMain({ initialSession, onExit }) {
       try {
         const subData = await api.getSubmissionStatus(session.code);
         setIsSubmitted(subData.isSubmitted);
-      } catch {}
+      } catch { }
       try {
         await api.getDocumentInfo(session.code);
         setHasDocument(true);
@@ -1073,11 +1073,10 @@ function ParticipantMain({ initialSession, onExit }) {
                 <button
                   disabled={!isOpen || isSubmitted}
                   onClick={() => setVotingFM(fm)}
-                  className={`shrink-0 px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-1.5 transition-all ${
-                    isOpen && !isSubmitted
-                      ? (complete ? 'bg-slate-100 text-slate-600 hover:bg-slate-200' : 'bg-gradient-to-r from-teal-600 to-emerald-600 text-white hover:from-teal-700 hover:to-emerald-700 shadow-sm')
-                      : 'bg-slate-100 text-slate-300 cursor-not-allowed'
-                  }`}
+                  className={`shrink-0 px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-1.5 transition-all ${isOpen && !isSubmitted
+                    ? (complete ? 'bg-slate-100 text-slate-600 hover:bg-slate-200' : 'bg-gradient-to-r from-teal-600 to-emerald-600 text-white hover:from-teal-700 hover:to-emerald-700 shadow-sm')
+                    : 'bg-slate-100 text-slate-300 cursor-not-allowed'
+                    }`}
                 >
                   {isOpen && !isSubmitted ? (complete ? <><Eye size={14} /> {t(lang, 'fm.edit')}</> : t(lang, 'fm.assess')) : <Lock size={14} />}
                 </button>
@@ -1109,9 +1108,8 @@ function ParticipantMain({ initialSession, onExit }) {
               <button
                 disabled={!canSubmit}
                 onClick={() => setShowSubmitConfirm(true)}
-                className={`px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-all ${
-                  canSubmit ? 'bg-gradient-to-r from-teal-600 to-emerald-600 text-white hover:from-teal-700 hover:to-emerald-700 shadow-sm' : 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                }`}
+                className={`px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-all ${canSubmit ? 'bg-gradient-to-r from-teal-600 to-emerald-600 text-white hover:from-teal-700 hover:to-emerald-700 shadow-sm' : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                  }`}
               >
                 <Send size={16} /> {t(lang, 'submit.btn')}
               </button>
@@ -1196,7 +1194,7 @@ function AppContent() {
         } else {
           setProfileComplete(true);
         }
-      }).catch(() => {});
+      }).catch(() => { });
     }
   }, [user]);
 
