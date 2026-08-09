@@ -200,15 +200,25 @@ const L = 'Low', M = 'Moderate', H = 'High', E = 'Extreme';
 // [likelihood (1-5)][consequence (1-5)] => { level, score }
 export const RISK_MATRIX = {
   // Rare
-  1: { 1: { level: L, score: 1 },  2: { level: L, score: 2 },  3: { level: M, score: 6 },   4: { level: M, score: 9 },  5: { level: H, score: 14 } },
+  5: { 1: { level: E, score: 25 }, 4: { level: E, score: 24 }, 3: { level: H, score: 20 }, 2: { level: H, score: 13 }, 5: { level: M, score: 12 } },
   // Unlikely
-  2: { 1: { level: L, score: 3 },  2: { level: L, score: 4 },  3: { level: M, score: 10 },  4: { level: H, score: 15 }, 5: { level: H, score: 18 } },
+  5: { 1: { level: E, score: 23 }, 4: { level: E, score: 22 }, 3: { level: H, score: 17 }, 2: { level: M, score: 11 }, 4: { level: M, score: 8 } },
   // Possible
-  3: { 1: { level: L, score: 5 },  2: { level: M, score: 7 },  3: { level: H, score: 16 },  4: { level: H, score: 19 }, 5: { level: E, score: 21 } },
+  5: { 1: { level: E, score: 21 }, 4: { level: H, score: 19 }, 3: { level: H, score: 16 }, 2: { level: M, score: 7 }, 3: { level: L, score: 5 } },
   // Likely
-  4: { 1: { level: M, score: 8 },  2: { level: M, score: 11 }, 3: { level: H, score: 17 },  4: { level: E, score: 22 }, 5: { level: E, score: 23 } },
+  5: { 1: { level: H, score: 18 }, 4: { level: H, score: 15 }, 3: { level: M, score: 10 }, 2: { level: L, score: 4 }, 2: { level: L, score: 3 } },
   // Almost Certain
-  5: { 1: { level: M, score: 12 }, 2: { level: H, score: 13 }, 3: { level: H, score: 20 },  4: { level: E, score: 24 }, 5: { level: E, score: 25 } },
+  5: { 1: { level: H, score: 14 }, 4: { level: M, score: 9 }, 3: { level: M, score: 6 }, 2: { level: L, score: 2 }, 1: { level: L, score: 1 } },
+  // // Rare
+  // 1: { 1: { level: L, score: 1 },  2: { level: L, score: 2 },  3: { level: M, score: 6 },   4: { level: M, score: 9 },  5: { level: H, score: 14 } },
+  // // Unlikely
+  // 2: { 1: { level: L, score: 3 },  2: { level: L, score: 4 },  3: { level: M, score: 10 },  4: { level: H, score: 15 }, 5: { level: H, score: 18 } },
+  // // Possible
+  // 3: { 1: { level: L, score: 5 },  2: { level: M, score: 7 },  3: { level: H, score: 16 },  4: { level: H, score: 19 }, 5: { level: E, score: 21 } },
+  // // Likely
+  // 4: { 1: { level: M, score: 8 },  2: { level: M, score: 11 }, 3: { level: H, score: 17 },  4: { level: E, score: 22 }, 5: { level: E, score: 23 } },
+  // // Almost Certain
+  // 5: { 1: { level: M, score: 12 }, 2: { level: H, score: 13 }, 3: { level: H, score: 20 },  4: { level: E, score: 24 }, 5: { level: E, score: 25 } },
 };
 
 // ---------------------------------------------------------------------------
@@ -221,15 +231,15 @@ const W = 'Weak', EN = 'Encouraged', I = 'Important', F = 'Foremost';
 
 export const OPPORTUNITY_MATRIX = {
   // Rare
-  1: { 1: { level: W, score: 1 },   2: { level: W, score: 2 },   3: { level: W, score: 3 },    4: { level: EN, score: 4 },  5: { level: EN, score: 5 } },
+  1: { 1: { level: W, score: 1 }, 2: { level: W, score: 2 }, 3: { level: W, score: 3 }, 4: { level: EN, score: 4 }, 5: { level: EN, score: 5 } },
   // Unlikely
-  2: { 1: { level: W, score: 2 },   2: { level: W, score: 4 },   3: { level: EN, score: 6 },   4: { level: EN, score: 8 },  5: { level: I, score: 10 } },
+  2: { 1: { level: W, score: 2 }, 2: { level: W, score: 4 }, 3: { level: EN, score: 6 }, 4: { level: EN, score: 8 }, 5: { level: I, score: 10 } },
   // Possible
-  3: { 1: { level: W, score: 3 },   2: { level: EN, score: 6 },  3: { level: EN, score: 9 },   4: { level: I, score: 12 },  5: { level: I, score: 15 } },
+  3: { 1: { level: W, score: 3 }, 2: { level: EN, score: 6 }, 3: { level: EN, score: 9 }, 4: { level: I, score: 12 }, 5: { level: I, score: 15 } },
   // Likely
-  4: { 1: { level: EN, score: 4 },  2: { level: EN, score: 8 },  3: { level: I, score: 12 },   4: { level: F, score: 16 },  5: { level: F, score: 20 } },
+  4: { 1: { level: EN, score: 4 }, 2: { level: EN, score: 8 }, 3: { level: I, score: 12 }, 4: { level: F, score: 16 }, 5: { level: F, score: 20 } },
   // Almost Certain
-  5: { 1: { level: EN, score: 5 },  2: { level: I, score: 10 },  3: { level: I, score: 15 },   4: { level: F, score: 20 },  5: { level: F, score: 25 } },
+  5: { 1: { level: EN, score: 5 }, 2: { level: I, score: 10 }, 3: { level: I, score: 15 }, 4: { level: F, score: 20 }, 5: { level: F, score: 25 } },
 };
 
 // ---------------------------------------------------------------------------
