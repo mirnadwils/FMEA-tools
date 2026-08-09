@@ -21,28 +21,7 @@ const BILINGUAL_FIELDS = [
   { dbField: 'owner_action',        bodyKey: 'ownerAction' },
 ];
 
-/**
- * Validate bilingual pairs: if one member of a pair is present while the other is blank,
- * return an error identifying the row and field.
- */
-function validateBilingualPairs(fmList) {
-  const errors = [];
-  for (let i = 0; i < fmList.length; i++) {
-    const fm = fmList[i];
-    for (const { bodyKey } of BILINGUAL_FIELDS) {
-      const pair = fm[bodyKey];
-      if (!pair) continue;
-      const hasId = pair.id && pair.id.trim();
-      const hasEn = pair.en && pair.en.trim();
-      if (hasId && !hasEn) {
-        errors.push(`Row ${i + 1} (FM ${fm.no}): "${bodyKey}" has Indonesian text but missing English text.`);
-      } else if (!hasId && hasEn) {
-        errors.push(`Row ${i + 1} (FM ${fm.no}): "${bodyKey}" has English text but missing Indonesian text.`);
-      }
-    }
-  }
-  return errors;
-}
+
 
 /**
  * POST /api/sessions/[code]/fm — Import bilingual failure modes (facilitator only)
@@ -64,14 +43,7 @@ export async function POST(request, { params }) {
       );
     }
 
-    // Validate bilingual pairs before any destructive writes
-    const pairErrors = validateBilingualPairs(fmList);
-    if (pairErrors.length > 0) {
-      return NextResponse.json(
-        { error: 'Bilingual validation failed', details: pairErrors },
-        { status: 400 }
-      );
-    }
+
 
     // Get session id
     const sessions = await query(
@@ -89,12 +61,12 @@ export async function POST(request, { params }) {
     // Insert all failure modes
     const inserted = [];
     for (const fm of fmList) {
-      // Use Indonesian text for the main failure_modes table columns (compatibility)
-      const getIdText = (key) => {
+      // Use English text for the main failure_modes table columns
+      const getEnText = (key) => {
         const val = fm[key];
         if (!val) return null;
         if (typeof val === 'string') return val || null;
-        return val.id || null;
+        return val.en || null;
       };
 
       const rows = await query(
@@ -105,11 +77,11 @@ export async function POST(request, { params }) {
          RETURNING id, fm_no`,
         [
           sessionId, fm.no,
-          getIdText('category'), getIdText('title'),
-          getIdText('mechanism'), getIdText('initiation'), getIdText('continuation'),
-          getIdText('progression'), getIdText('detectionMonitoring'),
-          getIdText('intervention'), getIdText('effect'), getIdText('notes'),
-          getIdText('ownerAction'),
+          getEnText('category'), getEnText('title'),
+          getEnText('mechanism'), getEnText('initiation'), getEnText('continuation'),
+          getEnText('progression'), getEnText('detectionMonitoring'),
+          getEnText('intervention'), getEnText('effect'), getEnText('notes'),
+          getEnText('ownerAction'),
         ]
       );
       const fmId = rows[0].id;
@@ -123,12 +95,13 @@ export async function POST(request, { params }) {
         [sessionId, fm.no]
       );
 
-      // Store bilingual translations from facilitator-provided data
+      // Store translations — use English text for both fields (single-language import)
       const bilingualData = {};
       for (const { dbField, bodyKey } of BILINGUAL_FIELDS) {
         const val = fm[bodyKey];
         if (val && typeof val === 'object') {
-          bilingualData[dbField] = { id: val.id || '', en: val.en || '' };
+          const enText = val.en || '';
+          bilingualData[dbField] = { id: enText, en: enText };
         } else if (val && typeof val === 'string') {
           bilingualData[dbField] = { id: val, en: val };
         }

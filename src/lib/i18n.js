@@ -417,8 +417,8 @@ const dict = {
     id: 'Kebijakan Bobot Pengalaman',
   },
   'guideline.weighting_desc': {
-    en: 'Votes are weighted by experience level: Beginner = 1, Experienced = 2, Expert = 3.',
-    id: 'Suara dibobotkan berdasarkan tingkat pengalaman: Pemula = 1, Berpengalaman = 2, Ahli = 3.',
+    en: 'Votes are weighted by experience level: Beginner = 1, Experienced = 3, Expert = 5.',
+    id: 'Suara dibobotkan berdasarkan tingkat pengalaman: Pemula = 1, Berpengalaman = 3, Ahli = 5.',
   },
   'guideline.likelihood_table': {
     en: 'Likelihood Scale',
@@ -443,8 +443,8 @@ const dict = {
     id: 'Import Daftar Failure Mode (.xlsx)',
   },
   'import.columns_desc': {
-    en: 'Auto-recognized paired columns (e.g., category_id and category_en): FM No., Category, Potential Failure Mode, Main Trigger / Detailed Mechanism, Initiation, Continuation, Progression, Potential Detection / Monitoring, Possible Intervention / Risk Controls, Potential Effect / Consequence, PFMA Notes / Workshop Questions, Owner / Action.',
-    id: 'Kolom pasangan yang dikenali otomatis (mis. category_id dan category_en): FM No., Category, Potential Failure Mode, Main Trigger / Detailed Mechanism, Initiation, Continuation, Progression, Potential Detection / Monitoring, Possible Intervention / Risk Controls, Potential Effect / Consequence, PFMA Notes / Workshop Questions, Owner / Action.',
+    en: 'Auto-recognized columns: FM No., Category, Potential Failure Mode (Title), Main Trigger / Detailed Mechanism, Initiation, Continuation, Progression, Potential Detection / Monitoring, Possible Intervention / Risk Controls, Potential Effect / Consequence, PFMA Notes / Workshop Questions, Owner / Action.',
+    id: 'Kolom yang dikenali otomatis: FM No., Category, Potential Failure Mode (Title), Main Trigger / Detailed Mechanism, Initiation, Continuation, Progression, Potential Detection / Monitoring, Possible Intervention / Risk Controls, Potential Effect / Consequence, PFMA Notes / Workshop Questions, Owner / Action.',
   },
   'import.preview': {
     en: 'Preview',
@@ -576,8 +576,8 @@ export const PROFESSIONAL_ROLES = [
 
 export const EXPERIENCE_LEVELS = [
   { key: 'beginner', weight: 1, label: { en: 'Beginner', id: 'Pemula' }, description: { en: '0–3 years in dam/geotechnical engineering', id: '0–3 tahun pengalaman di bidang dam/geoteknik' } },
-  { key: 'experienced', weight: 2, label: { en: 'Experienced', id: 'Berpengalaman' }, description: { en: '3–10 years in dam/geotechnical engineering', id: '3–10 tahun pengalaman di bidang dam/geoteknik' } },
-  { key: 'expert', weight: 3, label: { en: 'Expert', id: 'Ahli' }, description: { en: '10+ years in dam/geotechnical engineering', id: '10+ tahun pengalaman di bidang dam/geoteknik' } },
+  { key: 'experienced', weight: 3, label: { en: 'Experienced', id: 'Berpengalaman' }, description: { en: '3–10 years in dam/geotechnical engineering', id: '3–10 tahun pengalaman di bidang dam/geoteknik' } },
+  { key: 'expert', weight: 5, label: { en: 'Expert', id: 'Ahli' }, description: { en: '10+ years in dam/geotechnical engineering', id: '10+ tahun pengalaman di bidang dam/geoteknik' } },
 ];
 
-export const EXPERIENCE_WEIGHT = { beginner: 1, experienced: 2, expert: 3 };
+export const EXPERIENCE_WEIGHT = { beginner: 1, experienced: 3, expert: 5 };

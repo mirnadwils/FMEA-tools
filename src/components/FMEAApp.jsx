@@ -47,52 +47,31 @@ function findVal(row, keywords) {
   return key !== undefined ? String(row[key] ?? '').trim() : '';
 }
 
-/** Read a paired _id / _en column set from a row. Returns { id, en }. */
-function findPair(row, baseKeywords) {
-  const idVal = findVal(row, [...baseKeywords, '_id']) || findVal(row, [...baseKeywords, 'id']);
-  const enVal = findVal(row, [...baseKeywords, '_en']) || findVal(row, [...baseKeywords, 'en']);
-  return { id: idVal, en: enVal };
+/** Read a single column value from a row. Returns { en: value }. */
+function findSingle(row, keywords) {
+  const val = findVal(row, keywords);
+  return { en: val };
 }
 
 function mapRowToFM(row, idx) {
   const no = findVal(row, ['fm', 'no']) || findVal(row, ['fm_no']) || String(idx + 1);
   return {
     no,
-    category: findPair(row, ['category']),
-    title: findPair(row, ['title']),
-    mechanism: findPair(row, ['mechanism']),
-    initiation: findPair(row, ['initiation']),
-    continuation: findPair(row, ['continuation']),
-    progression: findPair(row, ['progression']),
-    detectionMonitoring: findPair(row, ['detection', 'monitoring']),
-    intervention: findPair(row, ['intervention']),
-    effect: findPair(row, ['effect']),
-    notes: findPair(row, ['notes']),
-    ownerAction: findPair(row, ['owner', 'action']),
+    category: findSingle(row, ['category']),
+    title: findSingle(row, ['title']),
+    mechanism: findSingle(row, ['mechanism']),
+    initiation: findSingle(row, ['initiation']),
+    continuation: findSingle(row, ['continuation']),
+    progression: findSingle(row, ['progression']),
+    detectionMonitoring: findSingle(row, ['detection', 'monitoring']),
+    intervention: findSingle(row, ['intervention']),
+    effect: findSingle(row, ['effect']),
+    notes: findSingle(row, ['notes']),
+    ownerAction: findSingle(row, ['owner', 'action']),
   };
 }
 
-/** Validate bilingual pairs on client side. Returns array of error strings. */
-function validateBilingualPairs(fmList) {
-  const errors = [];
-  const pairFields = ['category', 'title', 'mechanism', 'initiation', 'continuation',
-    'progression', 'detectionMonitoring', 'intervention', 'effect', 'notes', 'ownerAction'];
-  for (let i = 0; i < fmList.length; i++) {
-    const fm = fmList[i];
-    for (const key of pairFields) {
-      const pair = fm[key];
-      if (!pair) continue;
-      const hasId = pair.id && pair.id.trim();
-      const hasEn = pair.en && pair.en.trim();
-      if (hasId && !hasEn) {
-        errors.push(`Row ${i + 1} (FM ${fm.no}): "${key}" has ID text but missing EN text.`);
-      } else if (!hasId && hasEn) {
-        errors.push(`Row ${i + 1} (FM ${fm.no}): "${key}" has EN text but missing ID text.`);
-      }
-    }
-  }
-  return errors;
-}
+
 
 
 function weightedAvg(assessments, riskField, expField) {
@@ -297,18 +276,11 @@ function ImportTab({ session, onUpdateSession }) {
         const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
         
         // Map and filter out completely empty rows
-        const parsed = rows.map(mapRowToFM).filter((fm) => fm.title?.id || fm.title?.en || fm.category?.id || fm.category?.en);
+        const parsed = rows.map(mapRowToFM).filter((fm) => fm.title?.en || fm.category?.en);
         
         if (!parsed.length) { 
           setFileErrs([lang === 'id' ? 'Tidak ada baris valid.' : 'No valid rows found.']); 
           return; 
-        }
-
-        // Validate bilingual pairs
-        const errors = validateBilingualPairs(parsed);
-        if (errors.length > 0) {
-          setFileErrs(errors);
-          return;
         }
 
         setPreview(parsed);
@@ -361,18 +333,14 @@ function ImportTab({ session, onUpdateSession }) {
             <table className="w-full text-xs">
               <thead className="bg-slate-50 sticky top-0"><tr>
                 <th className="p-2 text-left">No</th>
-                <th className="p-2 text-left">Category (ID)</th>
-                <th className="p-2 text-left">Category (EN)</th>
-                <th className="p-2 text-left">Failure Mode (ID)</th>
-                <th className="p-2 text-left">Failure Mode (EN)</th>
+                <th className="p-2 text-left">Category</th>
+                <th className="p-2 text-left">Failure Mode</th>
               </tr></thead>
               <tbody>
                 {preview.map((fm, i) => (
                   <tr key={i} className="border-t border-slate-100">
                     <td className="p-2">{fm.no}</td>
-                    <td className="p-2">{fm.category?.id}</td>
                     <td className="p-2">{fm.category?.en}</td>
-                    <td className="p-2">{fm.title?.id}</td>
                     <td className="p-2">{fm.title?.en}</td>
                   </tr>
                 ))}

@@ -12,64 +12,64 @@ export const MERDEKA_VERSION = 'merdeka-v1';
 
 export const LIKELIHOOD_LEVELS = [
   {
-    value: 1,
-    key: 'rare',
-    label: { en: 'Rare', id: 'Jarang Sekali' },
+    value: 5,
+    key: 'almost_certain',
+    label: { en: 'Almost Certain', id: 'Hampir Pasti' },
     description: {
-      en: 'The event could occur only in exceptional circumstances. Less than 1 in 1,000,000 per year.',
-      id: 'Peristiwa hanya dapat terjadi dalam keadaan luar biasa. Kurang dari 1 dalam 1.000.000 per tahun.',
+      en: 'The event will occur / occurs in all circumstances.',
+      id: 'Peristiwa akan terjadi / terjadi dalam semua keadaan.',
     },
-    frequency: { en: 'Less than once in 1,000,000 years', id: 'Kurang dari sekali dalam 1.000.000 tahun' },
-    probability: '< 0.0001%',
-    color: '#3b82f6', // blue
-  },
-  {
-    value: 2,
-    key: 'unlikely',
-    label: { en: 'Unlikely', id: 'Tidak Mungkin' },
-    description: {
-      en: 'The event could occur at some time but is not expected. Between 1 in 1,000,000 and 1 in 100,000 per year.',
-      id: 'Peristiwa dapat terjadi suatu saat tetapi tidak diharapkan. Antara 1 dalam 1.000.000 dan 1 dalam 100.000 per tahun.',
-    },
-    frequency: { en: 'Once in 100,000 to 1,000,000 years', id: 'Sekali dalam 100.000 sampai 1.000.000 tahun' },
-    probability: '0.0001% – 0.001%',
-    color: '#22c55e', // green
-  },
-  {
-    value: 3,
-    key: 'possible',
-    label: { en: 'Possible', id: 'Mungkin' },
-    description: {
-      en: 'The event might occur at some time. Between 1 in 100,000 and 1 in 10,000 per year.',
-      id: 'Peristiwa mungkin terjadi pada suatu waktu. Antara 1 dalam 100.000 dan 1 dalam 10.000 per tahun.',
-    },
-    frequency: { en: 'Once in 10,000 to 100,000 years', id: 'Sekali dalam 10.000 sampai 100.000 tahun' },
-    probability: '0.001% – 0.01%',
-    color: '#eab308', // yellow
+    frequency: { en: 'The event occurs daily', id: 'Peristiwa terjadi setiap hari' },
+    probability: '30%',
+    color: '#ef4444', // red
   },
   {
     value: 4,
     key: 'likely',
     label: { en: 'Likely', id: 'Kemungkinan Besar' },
     description: {
-      en: 'The event will probably occur in most circumstances. Between 1 in 10,000 and 1 in 1,000 per year.',
-      id: 'Peristiwa kemungkinan besar akan terjadi di sebagian besar keadaan. Antara 1 dalam 10.000 dan 1 dalam 1.000 per tahun.',
+      en: 'The event is expected to occur / occurs in most circumstances.',
+      id: 'Peristiwa diperkirakan akan terjadi / terjadi di sebagian besar keadaan.',
     },
-    frequency: { en: 'Once in 1,000 to 10,000 years', id: 'Sekali dalam 1.000 sampai 10.000 tahun' },
-    probability: '0.01% – 0.1%',
+    frequency: { en: 'The event occurs weekly/monthly', id: 'Peristiwa terjadi mingguan/bulanan' },
+    probability: '10%',
     color: '#f97316', // orange
   },
   {
-    value: 5,
-    key: 'almost_certain',
-    label: { en: 'Almost Certain', id: 'Hampir Pasti' },
+    value: 3,
+    key: 'possible',
+    label: { en: 'Possible', id: 'Mungkin' },
     description: {
-      en: 'The event is expected to occur in most circumstances. Greater than 1 in 1,000 per year.',
-      id: 'Peristiwa diperkirakan akan terjadi di sebagian besar keadaan. Lebih dari 1 dalam 1.000 per tahun.',
+      en: 'The event will occur under some circumstances / will probably occur / has occurred before.',
+      id: 'Peristiwa akan terjadi dalam beberapa keadaan / kemungkinan akan terjadi / pernah terjadi sebelumnya.',
     },
-    frequency: { en: 'More than once in 1,000 years', id: 'Lebih dari sekali dalam 1.000 tahun' },
-    probability: '> 0.1%',
-    color: '#ef4444', // red
+    frequency: { en: 'The event occurs annually', id: 'Peristiwa terjadi setiap tahun' },
+    probability: '3%',
+    color: '#eab308', // yellow
+  },
+  {
+    value: 2,
+    key: 'unlikely',
+    label: { en: 'Unlikely', id: 'Tidak Mungkin' },
+    description: {
+      en: 'The event has occurred elsewhere / could occur at some time.',
+      id: 'Peristiwa pernah terjadi di tempat lain / bisa terjadi suatu saat.',
+    },
+    frequency: { en: 'The event occurs every 10 years', id: 'Peristiwa terjadi setiap 10 tahun' },
+    probability: '1%',
+    color: '#22c55e', // green
+  },
+  {
+    value: 1,
+    key: 'rare',
+    label: { en: 'Rare', id: 'Jarang Sekali' },
+    description: {
+      en: 'The event may occur in exceptional circumstance / similar incident has occurred elsewhere.',
+      id: 'Peristiwa dapat terjadi dalam keadaan luar biasa / insiden serupa pernah terjadi di tempat lain.',
+    },
+    frequency: { en: 'The event has rarely occurred in the industry', id: 'Peristiwa jarang terjadi dalam industri' },
+    probability: '1%',
+    color: '#3b82f6', // blue
   },
 ];
 
@@ -79,34 +79,14 @@ export const LIKELIHOOD_LEVELS = [
 
 export const NEGATIVE_CONSEQUENCE_LEVELS = [
   {
-    value: 1,
-    key: 'low',
-    label: { en: 'Low', id: 'Rendah' },
+    value: 5,
+    key: 'catastrophic',
+    label: { en: 'Catastrophic', id: 'Katastropik' },
     description: {
-      en: 'Minimal impact. No injuries, minor environmental impact, low financial loss.',
-      id: 'Dampak minimal. Tidak ada cedera, dampak lingkungan kecil, kerugian finansial rendah.',
+      en: 'Catastrophic impact. Multiple fatalities, severe and lasting environmental damage, extreme financial loss.',
+      id: 'Dampak katastropik. Kematian banyak, kerusakan lingkungan parah dan berkelanjutan, kerugian finansial ekstrem.',
     },
-    color: '#3b82f6',
-  },
-  {
-    value: 2,
-    key: 'minor',
-    label: { en: 'Minor', id: 'Kecil' },
-    description: {
-      en: 'Small impact. First aid injuries, limited environmental damage, moderate financial loss.',
-      id: 'Dampak kecil. Cedera pertolongan pertama, kerusakan lingkungan terbatas, kerugian finansial moderat.',
-    },
-    color: '#22c55e',
-  },
-  {
-    value: 3,
-    key: 'moderate',
-    label: { en: 'Moderate', id: 'Sedang' },
-    description: {
-      en: 'Moderate impact. Medical treatment injuries, moderate environmental damage, significant financial loss.',
-      id: 'Dampak sedang. Cedera memerlukan perawatan medis, kerusakan lingkungan sedang, kerugian finansial signifikan.',
-    },
-    color: '#eab308',
+    color: '#ef4444',
   },
   {
     value: 4,
@@ -119,14 +99,34 @@ export const NEGATIVE_CONSEQUENCE_LEVELS = [
     color: '#f97316',
   },
   {
-    value: 5,
-    key: 'catastrophic',
-    label: { en: 'Catastrophic', id: 'Katastropik' },
+    value: 3,
+    key: 'moderate',
+    label: { en: 'Moderate', id: 'Sedang' },
     description: {
-      en: 'Catastrophic impact. Multiple fatalities, severe and lasting environmental damage, extreme financial loss.',
-      id: 'Dampak katastropik. Kematian banyak, kerusakan lingkungan parah dan berkelanjutan, kerugian finansial ekstrem.',
+      en: 'Moderate impact. Medical treatment injuries, moderate environmental damage, significant financial loss.',
+      id: 'Dampak sedang. Cedera memerlukan perawatan medis, kerusakan lingkungan sedang, kerugian finansial signifikan.',
     },
-    color: '#ef4444',
+    color: '#eab308',
+  },
+  {
+    value: 2,
+    key: 'minor',
+    label: { en: 'Minor', id: 'Kecil' },
+    description: {
+      en: 'Small impact. First aid injuries, limited environmental damage, moderate financial loss.',
+      id: 'Dampak kecil. Cedera pertolongan pertama, kerusakan lingkungan terbatas, kerugian finansial moderat.',
+    },
+    color: '#22c55e',
+  },
+  {
+    value: 1,
+    key: 'low',
+    label: { en: 'Low', id: 'Rendah' },
+    description: {
+      en: 'Minimal impact. No injuries, minor environmental impact, low financial loss.',
+      id: 'Dampak minimal. Tidak ada cedera, dampak lingkungan kecil, kerugian finansial rendah.',
+    },
+    color: '#3b82f6',
   },
 ];
 
@@ -200,25 +200,15 @@ const L = 'Low', M = 'Moderate', H = 'High', E = 'Extreme';
 // [likelihood (1-5)][consequence (1-5)] => { level, score }
 export const RISK_MATRIX = {
   // Rare
-  5: { 1: { level: E, score: 25 }, 4: { level: E, score: 24 }, 3: { level: H, score: 20 }, 2: { level: H, score: 13 }, 5: { level: M, score: 12 } },
+  1: { 1: { level: L, score: 1 },  2: { level: L, score: 2 },  3: { level: M, score: 6 },   4: { level: M, score: 9 },  5: { level: H, score: 14 } },
   // Unlikely
-  5: { 1: { level: E, score: 23 }, 4: { level: E, score: 22 }, 3: { level: H, score: 17 }, 2: { level: M, score: 11 }, 4: { level: M, score: 8 } },
+  2: { 1: { level: L, score: 3 },  2: { level: L, score: 4 },  3: { level: M, score: 10 },  4: { level: H, score: 15 }, 5: { level: H, score: 18 } },
   // Possible
-  5: { 1: { level: E, score: 21 }, 4: { level: H, score: 19 }, 3: { level: H, score: 16 }, 2: { level: M, score: 7 }, 3: { level: L, score: 5 } },
+  3: { 1: { level: L, score: 5 },  2: { level: M, score: 7 },  3: { level: H, score: 16 },  4: { level: H, score: 19 }, 5: { level: E, score: 21 } },
   // Likely
-  5: { 1: { level: H, score: 18 }, 4: { level: H, score: 15 }, 3: { level: M, score: 10 }, 2: { level: L, score: 4 }, 2: { level: L, score: 3 } },
+  4: { 1: { level: M, score: 8 },  2: { level: M, score: 11 }, 3: { level: H, score: 17 },  4: { level: E, score: 22 }, 5: { level: E, score: 23 } },
   // Almost Certain
-  5: { 1: { level: H, score: 14 }, 4: { level: M, score: 9 }, 3: { level: M, score: 6 }, 2: { level: L, score: 2 }, 1: { level: L, score: 1 } },
-  // // Rare
-  // 1: { 1: { level: L, score: 1 },  2: { level: L, score: 2 },  3: { level: M, score: 6 },   4: { level: M, score: 9 },  5: { level: H, score: 14 } },
-  // // Unlikely
-  // 2: { 1: { level: L, score: 3 },  2: { level: L, score: 4 },  3: { level: M, score: 10 },  4: { level: H, score: 15 }, 5: { level: H, score: 18 } },
-  // // Possible
-  // 3: { 1: { level: L, score: 5 },  2: { level: M, score: 7 },  3: { level: H, score: 16 },  4: { level: H, score: 19 }, 5: { level: E, score: 21 } },
-  // // Likely
-  // 4: { 1: { level: M, score: 8 },  2: { level: M, score: 11 }, 3: { level: H, score: 17 },  4: { level: E, score: 22 }, 5: { level: E, score: 23 } },
-  // // Almost Certain
-  // 5: { 1: { level: M, score: 12 }, 2: { level: H, score: 13 }, 3: { level: H, score: 20 },  4: { level: E, score: 24 }, 5: { level: E, score: 25 } },
+  5: { 1: { level: M, score: 12 }, 2: { level: H, score: 13 }, 3: { level: H, score: 20 },  4: { level: E, score: 24 }, 5: { level: E, score: 25 } },
 };
 
 // ---------------------------------------------------------------------------
