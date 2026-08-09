@@ -126,3 +126,32 @@ export async function getSessionMembers(sessionCode) {
     [sessionCode.toUpperCase()]
   );
 }
+
+/**
+ * Update a session member's professional role and experience level.
+ * Also updates the global user profile to keep them in sync.
+ */
+export async function updateSessionMemberProfile(sessionCode, clerkUserId, { professionalRoleKey, experienceLevel }) {
+  // Update session_members record
+  const rows = await query(
+    `UPDATE session_members sm
+     SET professional_role_key = $3, experience_level = $4
+     FROM sessions s
+     WHERE sm.session_id = s.id AND s.code = $1 AND sm.clerk_user_id = $2
+     RETURNING sm.*`,
+    [sessionCode.toUpperCase(), clerkUserId, professionalRoleKey, experienceLevel]
+  );
+
+  if (rows.length === 0) {
+    throw Object.assign(new Error('Membership not found'), { status: 404 });
+  }
+
+  // Also update global user profile to keep in sync
+  await query(
+    `UPDATE users SET professional_role_key = $2, experience_level = $3, updated_at = NOW()
+     WHERE clerk_user_id = $1`,
+    [clerkUserId, professionalRoleKey, experienceLevel]
+  );
+
+  return rows[0];
+}

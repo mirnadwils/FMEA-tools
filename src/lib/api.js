@@ -89,6 +89,13 @@ export async function getMembership(code) {
   return fetchJSON(`${BASE}/sessions/${encodeURIComponent(code)}/membership`);
 }
 
+export async function updateMemberProfile(code, { professionalRoleKey, experienceLevel }) {
+  return fetchJSON(`${BASE}/sessions/${encodeURIComponent(code)}/membership`, {
+    method: 'PUT',
+    body: JSON.stringify({ professionalRoleKey, experienceLevel }),
+  });
+}
+
 // ---- Assessment (Clerk-authenticated) ----
 
 export async function saveAssessmentDraft(code, draft) {

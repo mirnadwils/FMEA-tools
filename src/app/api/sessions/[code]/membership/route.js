@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getAuthenticatedUser } from '@/lib/auth';
-import { getUserByClerkId, joinSessionAsMember, getSessionMembers, getSessionMembership } from '@/lib/users';
+import { getUserByClerkId, joinSessionAsMember, getSessionMembers, getSessionMembership, updateSessionMemberProfile } from '@/lib/users';
 import { writeAuditLog } from '@/lib/audit';
 import { query } from '@/lib/db';
 
@@ -76,6 +76,36 @@ export async function GET(request, { params }) {
       myMembership,
       totalMembers: members.length,
     });
+  } catch (error) {
+    const status = error.status || 500;
+    return NextResponse.json({ error: error.message }, { status });
+  }
+}
+
+/**
+ * PUT /api/sessions/[code]/membership — Update own session membership profile.
+ * Body: { professionalRoleKey, experienceLevel }
+ */
+export async function PUT(request, { params }) {
+  try {
+    const { code } = await params;
+    const { userId } = await getAuthenticatedUser();
+    const body = await request.json();
+
+    const { professionalRoleKey, experienceLevel } = body;
+    if (!professionalRoleKey || !experienceLevel) {
+      return NextResponse.json(
+        { error: 'professionalRoleKey and experienceLevel are required' },
+        { status: 400 }
+      );
+    }
+
+    const updated = await updateSessionMemberProfile(code, userId, {
+      professionalRoleKey,
+      experienceLevel,
+    });
+
+    return NextResponse.json(updated);
   } catch (error) {
     const status = error.status || 500;
     return NextResponse.json({ error: error.message }, { status });

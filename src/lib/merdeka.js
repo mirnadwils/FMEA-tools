@@ -68,7 +68,7 @@ export const LIKELIHOOD_LEVELS = [
       id: 'Peristiwa dapat terjadi dalam keadaan luar biasa / insiden serupa pernah terjadi di tempat lain.',
     },
     frequency: { en: 'The event has rarely occurred in the industry', id: 'Peristiwa jarang terjadi dalam industri' },
-    probability: '1%',
+    probability: '<1%',
     color: '#3b82f6', // blue
   },
 ];
@@ -200,15 +200,15 @@ const L = 'Low', M = 'Moderate', H = 'High', E = 'Extreme';
 // [likelihood (1-5)][consequence (1-5)] => { level, score }
 export const RISK_MATRIX = {
   // Rare
-  1: { 1: { level: L, score: 1 },  2: { level: L, score: 2 },  3: { level: M, score: 6 },   4: { level: M, score: 9 },  5: { level: H, score: 14 } },
+  1: { 1: { level: L, score: 1 }, 2: { level: L, score: 2 }, 3: { level: M, score: 6 }, 4: { level: M, score: 9 }, 5: { level: H, score: 14 } },
   // Unlikely
-  2: { 1: { level: L, score: 3 },  2: { level: L, score: 4 },  3: { level: M, score: 10 },  4: { level: H, score: 15 }, 5: { level: H, score: 18 } },
+  2: { 1: { level: L, score: 3 }, 2: { level: L, score: 4 }, 3: { level: M, score: 10 }, 4: { level: H, score: 15 }, 5: { level: H, score: 18 } },
   // Possible
-  3: { 1: { level: L, score: 5 },  2: { level: M, score: 7 },  3: { level: H, score: 16 },  4: { level: H, score: 19 }, 5: { level: E, score: 21 } },
+  3: { 1: { level: L, score: 5 }, 2: { level: M, score: 7 }, 3: { level: H, score: 16 }, 4: { level: H, score: 19 }, 5: { level: E, score: 21 } },
   // Likely
-  4: { 1: { level: M, score: 8 },  2: { level: M, score: 11 }, 3: { level: H, score: 17 },  4: { level: E, score: 22 }, 5: { level: E, score: 23 } },
+  4: { 1: { level: M, score: 8 }, 2: { level: M, score: 11 }, 3: { level: H, score: 17 }, 4: { level: E, score: 22 }, 5: { level: E, score: 23 } },
   // Almost Certain
-  5: { 1: { level: M, score: 12 }, 2: { level: H, score: 13 }, 3: { level: H, score: 20 },  4: { level: E, score: 24 }, 5: { level: E, score: 25 } },
+  5: { 1: { level: M, score: 12 }, 2: { level: H, score: 13 }, 3: { level: H, score: 20 }, 4: { level: E, score: 24 }, 5: { level: E, score: 25 } },
 };
 
 // ---------------------------------------------------------------------------

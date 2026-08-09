@@ -8,7 +8,7 @@ import {
   Lock, Unlock, Upload, Download, Users, BarChart3, ArrowLeft, CheckCircle2,
   Copy, RefreshCw, ClipboardList, Settings, AlertTriangle, Trophy,
   FileSpreadsheet, ChevronRight, HardHat, Shield, Sparkles,
-  BookOpen, Send, RotateCcw, Eye, LogIn, Globe, Save
+  BookOpen, Send, RotateCcw, Eye, LogIn, Globe, Save, User
 } from 'lucide-react';
 import * as api from '@/lib/api';
 import { t, PROFESSIONAL_ROLES, EXPERIENCE_LEVELS, EXPERIENCE_WEIGHT } from '@/lib/i18n';
@@ -47,27 +47,36 @@ function findVal(row, keywords) {
   return key !== undefined ? String(row[key] ?? '').trim() : '';
 }
 
+/** Try multiple keyword patterns in priority order, return first match. */
+function findValMulti(row, ...keywordSets) {
+  for (const keywords of keywordSets) {
+    const val = findVal(row, keywords);
+    if (val) return val;
+  }
+  return '';
+}
+
 /** Read a single column value from a row. Returns { en: value }. */
-function findSingle(row, keywords) {
-  const val = findVal(row, keywords);
+function findSingle(row, ...keywordSets) {
+  const val = findValMulti(row, ...keywordSets);
   return { en: val };
 }
 
 function mapRowToFM(row, idx) {
-  const no = findVal(row, ['fm', 'no']) || findVal(row, ['fm_no']) || String(idx + 1);
+  const no = findValMulti(row, ['fm', 'no'], ['fm_no'], ['no']) || String(idx + 1);
   return {
     no,
     category: findSingle(row, ['category']),
-    title: findSingle(row, ['title']),
-    mechanism: findSingle(row, ['mechanism']),
+    title: findSingle(row, ['failure', 'mode'], ['title']),
+    mechanism: findSingle(row, ['mechanism'], ['trigger']),
     initiation: findSingle(row, ['initiation']),
     continuation: findSingle(row, ['continuation']),
     progression: findSingle(row, ['progression']),
-    detectionMonitoring: findSingle(row, ['detection', 'monitoring']),
-    intervention: findSingle(row, ['intervention']),
-    effect: findSingle(row, ['effect']),
-    notes: findSingle(row, ['notes']),
-    ownerAction: findSingle(row, ['owner', 'action']),
+    detectionMonitoring: findSingle(row, ['detection'], ['monitoring']),
+    intervention: findSingle(row, ['intervention'], ['risk', 'control']),
+    effect: findSingle(row, ['effect'], ['consequence']),
+    notes: findSingle(row, ['notes'], ['question']),
+    ownerAction: findSingle(row, ['owner'], ['action']),
   };
 }
 
@@ -949,6 +958,9 @@ function ParticipantMain({ initialSession, onExit }) {
   const [hasDocument, setHasDocument] = useState(false);
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [myProfile, setMyProfile] = useState(null);
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileSaved, setProfileSaved] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -966,6 +978,10 @@ function ParticipantMain({ initialSession, onExit }) {
         await api.getDocumentInfo(session.code);
         setHasDocument(true);
       } catch { setHasDocument(false); }
+      try {
+        const memberData = await api.getMembership(session.code);
+        if (memberData.myMembership) setMyProfile(memberData.myMembership);
+      } catch {}
     } catch (e) { console.error(e); }
   }, [session.code]);
 
@@ -1003,6 +1019,7 @@ function ParticipantMain({ initialSession, onExit }) {
   const tabs = [
     { id: 'list', label: t(lang, 'tab.fm_list'), icon: <ClipboardList size={15} /> },
     { id: 'guideline', label: t(lang, 'tab.guideline'), icon: <BookOpen size={15} /> },
+    { id: 'profile', label: t(lang, 'profile.title_short') || 'Profile', icon: <User size={15} /> },
   ];
 
   return (
@@ -1122,6 +1139,101 @@ function ParticipantMain({ initialSession, onExit }) {
       )}
 
       {tab === 'guideline' && <GuidelineTab sessionCode={session.code} hasDocument={hasDocument} />}
+
+      {tab === 'profile' && (
+        <div className="space-y-4">
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+            <div className="flex items-center gap-2 mb-4">
+              <User size={18} className="text-teal-600" />
+              <h3 className="font-bold text-slate-800">{lang === 'id' ? 'Edit Profil Sesi' : 'Edit Session Profile'}</h3>
+            </div>
+            {myProfile ? (
+              <div className="space-y-5">
+                {/* Professional Role */}
+                <div>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">{t(lang, 'profile.role')}</label>
+                  <select
+                    value={myProfile.professional_role_key || ''}
+                    onChange={(e) => setMyProfile({ ...myProfile, professional_role_key: e.target.value })}
+                    className="w-full mt-1.5 px-3 py-2.5 border border-slate-300 rounded-xl text-sm bg-white text-slate-900 focus:ring-2 focus:ring-teal-400 focus:border-teal-400 transition-all"
+                  >
+                    <option value="">{lang === 'id' ? '-- Pilih Peran --' : '-- Select Role --'}</option>
+                    {PROFESSIONAL_ROLES.map((r) => (
+                      <option key={r.key} value={r.key}>{r.label[lang]}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Experience Level */}
+                <div>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">{t(lang, 'profile.experience')}</label>
+                  <div className="mt-2 space-y-2">
+                    {EXPERIENCE_LEVELS.map((exp) => (
+                      <label
+                        key={exp.key}
+                        className={`flex items-start gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                          myProfile.experience_level === exp.key
+                            ? 'border-teal-400 bg-teal-50 ring-2 ring-teal-200'
+                            : 'border-slate-200 hover:border-slate-300'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="exp_edit"
+                          value={exp.key}
+                          checked={myProfile.experience_level === exp.key}
+                          onChange={(e) => setMyProfile({ ...myProfile, experience_level: e.target.value })}
+                          className="mt-0.5 accent-teal-600"
+                        />
+                        <div>
+                          <div className="font-bold text-sm text-slate-800">{exp.label[lang]}</div>
+                          <div className="text-xs text-slate-500">{exp.description[lang]}</div>
+                          <div className="text-[10px] text-slate-400 mt-0.5">
+                            {lang === 'id' ? 'Bobot' : 'Weight'}: {exp.weight}
+                          </div>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Save Button */}
+                <button
+                  disabled={profileSaving || !myProfile.professional_role_key || !myProfile.experience_level}
+                  onClick={async () => {
+                    setProfileSaving(true);
+                    setProfileSaved(false);
+                    try {
+                      await api.updateMemberProfile(session.code, {
+                        professionalRoleKey: myProfile.professional_role_key,
+                        experienceLevel: myProfile.experience_level,
+                      });
+                      setProfileSaved(true);
+                      setTimeout(() => setProfileSaved(false), 3000);
+                    } catch (e) {
+                      alert(e.message);
+                    }
+                    setProfileSaving(false);
+                  }}
+                  className="w-full bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white font-bold py-2.5 rounded-xl flex items-center justify-center gap-2 shadow-sm transition-all disabled:opacity-50"
+                >
+                  <Save size={16} />
+                  {profileSaving ? (t(lang, 'common.saving')) : profileSaved ? (t(lang, 'common.saved')) : (lang === 'id' ? 'Simpan Perubahan' : 'Save Changes')}
+                </button>
+
+                {profileSaved && (
+                  <div className="text-sm text-green-600 bg-green-50 border border-green-200 rounded-xl p-3 flex items-center gap-2">
+                    <CheckCircle2 size={16} />
+                    {lang === 'id' ? 'Profil berhasil diperbarui.' : 'Profile updated successfully.'}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-slate-400 text-sm italic animate-pulse">Loading...</div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Assessment Form Modal */}
       {votingFM && (

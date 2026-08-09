@@ -72,6 +72,10 @@ const dict = {
     en: 'Complete Your Profile',
     id: 'Lengkapi Profil Anda',
   },
+  'profile.title_short': {
+    en: 'Profile',
+    id: 'Profil',
+  },
   'profile.role': {
     en: 'Professional Role',
     id: 'Peran Profesional',
