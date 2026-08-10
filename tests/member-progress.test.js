@@ -32,3 +32,10 @@ test('membership route returns progress only from the facilitator branch', async
   assert.match(route, /getSessionMembersWithProgress/);
   assert.match(route, /if \(appRole === 'facilitator'\)/);
 });
+
+test('returns zero progress lists when the session has no imported FMs', () => {
+  const [member] = buildMemberProgress([{ id: 9, display_name: 'No FM' }], [], []);
+  assert.deepEqual(member.completedFmNos, []);
+  assert.deepEqual(member.incompleteFmNos, []);
+  assert.equal(member.totalFmCount, 0);
+});
