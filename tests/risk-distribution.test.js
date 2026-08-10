@@ -32,3 +32,9 @@ test('maps anonymous combination counts into individual Merdeka response levels'
   assert.equal('riskLikelihood' in result, false);
   assert.equal('negativeConsequence' in result, false);
 });
+
+test('keeps no-response FM rows with zero segments for the chart tooltip', () => {
+  const [row] = buildResponseDistribution([{ fmNo: 'FM-9', title: 'No data' }], []);
+  assert.deepEqual({ Extreme: row.Extreme, High: row.High, Moderate: row.Moderate, Low: row.Low, total: row.totalResponses },
+    { Extreme: 0, High: 0, Moderate: 0, Low: 0, total: 0 });
+});
