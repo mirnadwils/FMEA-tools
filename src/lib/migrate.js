@@ -240,23 +240,23 @@ async function seedProfessionalRoles() {
     { key: 'owner', en: 'Owner / Asset Owner', id: 'Pemilik / Pemilik Aset' },
     { key: 'owners_engineer', en: "Owner's Engineer", id: 'Insinyur Pemilik' },
     { key: 'eor', en: 'Engineer of Record', id: 'Engineer of Record' },
-    { key: 'dam_engineer', en: 'Dam Engineer', id: 'Insinyur Bendungan' },
-    { key: 'geotech', en: 'Geotechnical Engineer', id: 'Insinyur Geoteknik' },
-    { key: 'geologist', en: 'Geological Engineer / Engineering Geologist', id: 'Insinyur Geologi / Geolog Teknik' },
-    { key: 'structural', en: 'Structural Engineer', id: 'Insinyur Struktur' },
-    { key: 'hydraulic', en: 'Hydraulic / Hydrology Engineer', id: 'Insinyur Hidraulik / Hidrologi' },
-    { key: 'seismic', en: 'Seismic Engineer', id: 'Insinyur Seismik' },
-    { key: 'instrumentation', en: 'Instrumentation Engineer', id: 'Insinyur Instrumentasi' },
+    { key: 'dam_engineer', en: 'Dam', id: 'Bidang Bendungan' },
+    { key: 'geotech', en: 'Geotechnical', id: 'Bidang Geoteknik' },
+    { key: 'geologist', en: 'Geology / Engineering Geology', id: 'Bidang Geologi / Geologi Teknik' },
+    { key: 'structural', en: 'Structural', id: 'Bidang Struktur' },
+    { key: 'hydraulic', en: 'Hydraulics / Hydrology', id: 'Bidang Hidraulik / Hidrologi' },
+    { key: 'seismic', en: 'Seismic', id: 'Bidang Seismik' },
+    { key: 'instrumentation', en: 'Instrumentation', id: 'Bidang Instrumentasi' },
     { key: 'operations', en: 'Operations & Maintenance', id: 'Operasi & Pemeliharaan' },
-    { key: 'construction', en: 'Construction Engineer', id: 'Insinyur Konstruksi' },
-    { key: 'environmental', en: 'Environmental & Social Specialist', id: 'Spesialis Lingkungan & Sosial' },
+    { key: 'construction', en: 'Construction', id: 'Bidang Konstruksi' },
+    { key: 'environmental', en: 'Environmental & Social', id: 'Bidang Lingkungan & Sosial' },
     { key: 'emergency', en: 'Emergency Preparedness / Dam Safety', id: 'Kesiapsiagaan Darurat / Keselamatan Bendungan' },
     { key: 'itrb', en: 'ITRB', id: 'ITRB' },
     { key: 'regulator', en: 'Regulator / Government', id: 'Regulator / Pemerintah' },
     { key: 'risk_hse', en: 'Risk / HSE', id: 'Risiko / HSE' },
     { key: 'facilitator_role', en: 'Facilitator', id: 'Fasilitator' },
     { key: 'observer', en: 'Observer', id: 'Pengamat' },
-    { key: 'other', en: 'Other / Lainnya', id: 'Lainnya' },
+    { key: 'other', en: 'Other', id: 'Lainnya' },
   ];
 
   for (const role of roles) {
@@ -264,7 +264,7 @@ async function seedProfessionalRoles() {
       await query(
         `INSERT INTO professional_roles (key, label_en, label_id, is_default)
          VALUES ($1, $2, $3, true)
-         ON CONFLICT (key) DO NOTHING`,
+         ON CONFLICT (key) DO UPDATE SET label_en = EXCLUDED.label_en, label_id = EXCLUDED.label_id`,
         [role.key, role.en, role.id]
       );
     } catch (e) {

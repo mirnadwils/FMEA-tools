@@ -16,7 +16,7 @@ export default function ProfileSetup({ onComplete, initialProfile }) {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    if (!roleKey) { setErr(lang === 'id' ? 'Pilih peran profesional.' : 'Select a professional role.'); return; }
+    if (!roleKey) { setErr(lang === 'id' ? 'Pilih Bidang Pekerjaan.' : 'Select a Field Work.'); return; }
     if (!experience) { setErr(lang === 'id' ? 'Pilih tingkat pengalaman.' : 'Select experience level.'); return; }
     setBusy(true);
     setErr('');
@@ -52,7 +52,7 @@ export default function ProfileSetup({ onComplete, initialProfile }) {
             onChange={(e) => setRoleKey(e.target.value)}
             className="w-full mt-1.5 px-3 py-2.5 border border-slate-300 rounded-xl text-sm bg-white text-slate-900 focus:ring-2 focus:ring-teal-400 focus:border-teal-400 transition-all"
           >
-            <option value="">{lang === 'id' ? '-- Pilih Peran --' : '-- Select Role --'}</option>
+            <option value="">{lang === 'id' ? '-- Pilih Bidang Pekerjaan --' : '-- Select Field Work --'}</option>
             {PROFESSIONAL_ROLES.map((r) => (
               <option key={r.key} value={r.key}>{r.label[lang]}</option>
             ))}

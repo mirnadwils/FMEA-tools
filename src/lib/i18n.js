@@ -77,8 +77,8 @@ const dict = {
     id: 'Profil',
   },
   'profile.role': {
-    en: 'Professional Role',
-    id: 'Peran Profesional',
+    en: 'Field Work',
+    id: 'Bidang Pekerjaan',
   },
   'profile.experience': {
     en: 'Experience Level',
@@ -395,8 +395,8 @@ const dict = {
     id: 'Jumlah',
   },
   'error.profile_incomplete': {
-    en: 'Your profile is incomplete. Please set your professional role and experience level in your profile before joining.',
-    id: 'Profil Anda belum lengkap. Silakan atur role profesional dan tingkat pengalaman di profil Anda sebelum bergabung.',
+    en: 'Your profile is incomplete. Please set your Field Work and experience level in your profile before joining.',
+    id: 'Profil Anda belum lengkap. Silakan atur Bidang Pekerjaan dan tingkat pengalaman di profil Anda sebelum bergabung.',
   },
 
   // Guideline
@@ -559,23 +559,23 @@ export const PROFESSIONAL_ROLES = [
   { key: 'owner', label: { en: 'Owner / Asset Owner', id: 'Pemilik / Pemilik Aset' } },
   { key: 'owners_engineer', label: { en: "Owner's Engineer", id: 'Insinyur Pemilik' } },
   { key: 'eor', label: { en: 'Engineer of Record', id: 'Engineer of Record' } },
-  { key: 'dam_engineer', label: { en: 'Dam Engineer', id: 'Insinyur Bendungan' } },
-  { key: 'geotech', label: { en: 'Geotechnical Engineer', id: 'Insinyur Geoteknik' } },
-  { key: 'geologist', label: { en: 'Geological Engineer / Engineering Geologist', id: 'Insinyur Geologi / Geolog Teknik' } },
-  { key: 'structural', label: { en: 'Structural Engineer', id: 'Insinyur Struktur' } },
-  { key: 'hydraulic', label: { en: 'Hydraulic / Hydrology Engineer', id: 'Insinyur Hidraulik / Hidrologi' } },
-  { key: 'seismic', label: { en: 'Seismic Engineer', id: 'Insinyur Seismik' } },
-  { key: 'instrumentation', label: { en: 'Instrumentation Engineer', id: 'Insinyur Instrumentasi' } },
+  { key: 'dam_engineer', label: { en: 'Dam', id: 'Bidang Bendungan' } },
+  { key: 'geotech', label: { en: 'Geotechnical', id: 'Bidang Geoteknik' } },
+  { key: 'geologist', label: { en: 'Geology / Engineering Geology', id: 'Bidang Geologi / Geologi Teknik' } },
+  { key: 'structural', label: { en: 'Structural', id: 'Bidang Struktur' } },
+  { key: 'hydraulic', label: { en: 'Hydraulics / Hydrology', id: 'Bidang Hidraulik / Hidrologi' } },
+  { key: 'seismic', label: { en: 'Seismic', id: 'Bidang Seismik' } },
+  { key: 'instrumentation', label: { en: 'Instrumentation', id: 'Bidang Instrumentasi' } },
   { key: 'operations', label: { en: 'Operations & Maintenance', id: 'Operasi & Pemeliharaan' } },
-  { key: 'construction', label: { en: 'Construction Engineer', id: 'Insinyur Konstruksi' } },
-  { key: 'environmental', label: { en: 'Environmental & Social Specialist', id: 'Spesialis Lingkungan & Sosial' } },
+  { key: 'construction', label: { en: 'Construction', id: 'Bidang Konstruksi' } },
+  { key: 'environmental', label: { en: 'Environmental & Social', id: 'Bidang Lingkungan & Sosial' } },
   { key: 'emergency', label: { en: 'Emergency Preparedness / Dam Safety', id: 'Kesiapsiagaan Darurat / Keselamatan Bendungan' } },
   { key: 'itrb', label: { en: 'ITRB', id: 'ITRB' } },
   { key: 'regulator', label: { en: 'Regulator / Government', id: 'Regulator / Pemerintah' } },
   { key: 'risk_hse', label: { en: 'Risk / HSE', id: 'Risiko / HSE' } },
   { key: 'facilitator_role', label: { en: 'Facilitator', id: 'Fasilitator' } },
   { key: 'observer', label: { en: 'Observer', id: 'Pengamat' } },
-  { key: 'other', label: { en: 'Other / Lainnya', id: 'Lainnya' } },
+  { key: 'other', label: { en: 'Other', id: 'Lainnya' } },
 ];
 
 export const EXPERIENCE_LEVELS = [

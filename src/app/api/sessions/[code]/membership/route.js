@@ -17,7 +17,7 @@ export async function POST(request, { params }) {
     const profile = await getUserByClerkId(userId);
     if (!profile || !profile.professional_role_key || !profile.experience_level) {
       return NextResponse.json(
-        { error: 'Your profile is incomplete. Please set your professional role and experience level in your profile before joining a session.' },
+        { error: 'Your profile is incomplete. Please set your Field Work and experience level in your profile before joining a session.' },
         { status: 400 }
       );
     }
