@@ -38,3 +38,10 @@ test('keeps no-response FM rows with zero segments for the chart tooltip', () =>
   assert.deepEqual({ Extreme: row.Extreme, High: row.High, Moderate: row.Moderate, Low: row.Low, total: row.totalResponses },
     { Extreme: 0, High: 0, Moderate: 0, Low: 0, total: 0 });
 });
+
+import { readFile } from 'node:fs/promises';
+
+test('renders risk distribution dashboard before the global radar', async () => {
+  const component = await readFile(new URL('../src/components/RiskOverviewTab.jsx', import.meta.url), 'utf8');
+  assert.ok(component.indexOf('<RiskDistributionDashboard') < component.indexOf('<RadarChart'));
+});
