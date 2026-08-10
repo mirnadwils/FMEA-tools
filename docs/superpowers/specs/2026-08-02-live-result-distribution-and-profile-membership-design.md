@@ -2,7 +2,7 @@
 
 ## Goal
 
-Allow facilitators to cross-check participant Risk assessments by exposing anonymous per-failure-mode response distributions, and ensure participants join sessions using their persisted profile without being asked to re-enter or change their role or experience.
+Allow facilitators to cross-check participant Risk assessments through anonymous distributions, full failure-mode drill-downs, and an across-FM Risk Overview dashboard; ensure participants join sessions using their persisted profile without being asked to re-enter or change their role or experience.
 
 ## Scope
 
@@ -34,6 +34,32 @@ The facilitator Results tab renders, for each failure mode:
 The charts must use the unweighted anonymous response counts so facilitators can reconcile them with participant choices. The aggregate summary separately displays the experience-weighted averages and rounded ratings used for the final Merdeka risk score. The charts and heatmap are visual cross-check aids, not replacements for the weighted final calculation.
 
 The existing six-second refresh continues to update the data. The participant role remains prohibited from reading the Live Results endpoint.
+
+### Failure Mode Drill-Down
+
+Each failure-mode card in the facilitator Live Results list is clickable. Selecting it opens a dismissible detail panel that keeps the existing live aggregate summary, Likelihood and Consequence bar charts, and combination heatmap, and additionally presents the complete FM context in this fixed order:
+
+1. Category
+2. Potential Failure Mode
+3. Main Trigger / Detailed Mechanism
+4. Initiation
+5. Continuation
+6. Progression
+7. Potential Detection / Monitoring
+8. Possible Intervention / Risk Controls
+9. Potential Effect / Consequence
+10. PFMA Notes / Workshop Questions
+11. Owner / Action
+
+The detail panel uses the same shared field-rendering component as the participant assessment page. It resolves each stored ID/EN field against the selected UI language and omits empty optional values. No participant identity, individual response, or experience level is exposed in the drill-down.
+
+### Risk Overview Dashboard
+
+The facilitator dashboard adds a dedicated `Risk Overview` tab. It renders a Recharts radar (spider) chart where each radar axis is one failure mode and its value is that FM’s final Merdeka `riskScore` on the 1-to-25 scale.
+
+The chart uses all session FMs. FMs with no complete saved response appear at value 0 and are identified as `No data` in the tooltip. Hovering a radar point shows a custom tooltip containing the FM number, language-resolved FM title, final risk score, risk level, and the experience-weighted Likelihood and Consequence averages and rounded values. The tooltip is the authoritative way to identify an axis when many FM labels cannot fit legibly around the chart.
+
+The Risk Overview does not use response counts as radar values and does not change the existing per-FM weighted calculation. It refreshes on the same facilitator polling cycle as Live Results and remains unavailable to participants.
 
 ## Participant Membership
 
@@ -67,6 +93,8 @@ Automated tests must cover:
 
 - Distribution counts for independent Likelihood and Consequence ratings.
 - Correct 5 by 5 pairing counts and exclusion of incomplete drafts.
+- Radar-chart data maps every session FM to its final 1-to-25 Merdeka risk score, using zero only for FMs without complete responses.
+- Drill-down data uses the same ordered, language-resolved FM fields as the assessment walkthrough and does not include participant identities.
 - Membership creation using stored profile data rather than request-body values.
 - Rejoining does not overwrite an existing membership’s saved role or experience.
 - Missing persisted profile attributes prevent joining.
