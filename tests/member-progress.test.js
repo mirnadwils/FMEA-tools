@@ -39,3 +39,9 @@ test('returns zero progress lists when the session has no imported FMs', () => {
   assert.deepEqual(member.incompleteFmNos, []);
   assert.equal(member.totalFmCount, 0);
 });
+
+test('facilitator dashboard no longer renders the Translation editor tab', async () => {
+  const app = await readFile(new URL('../src/components/FMEAApp.jsx', import.meta.url), 'utf8');
+  assert.match(app, /id: 'participants'/);
+  assert.doesNotMatch(app, /TranslationReviewTab/);
+});

@@ -9,7 +9,7 @@ import {
   Lock, Unlock, Upload, Download, Users, BarChart3, ArrowLeft, CheckCircle2,
   Copy, RefreshCw, ClipboardList, Settings, AlertTriangle, Trophy,
   FileSpreadsheet, ChevronRight, HardHat, Shield, Sparkles,
-  BookOpen, Send, RotateCcw, Eye, LogIn, Globe, Save
+  BookOpen, Send, RotateCcw, Eye, LogIn, Save
 } from 'lucide-react';
 import * as api from '@/lib/api';
 import { t, PROFESSIONAL_ROLES, EXPERIENCE_LEVELS, EXPERIENCE_WEIGHT } from '@/lib/i18n';
@@ -24,6 +24,7 @@ import GuidelineTab from './GuidelineTab';
 import LiveResultDetailModal from './LiveResultDetailModal';
 import LiveResultCharts from './LiveResultCharts';
 import RiskOverviewTab from './RiskOverviewTab';
+import ParticipantsTab from './ParticipantsTab';
 
 /* =========================================================================
    FMEA WORKSHOP TOOL v2 — PT Solusi Geotek Optima
@@ -636,145 +637,6 @@ function ExportTab({ session, liveData }) {
 }
 
 // ---------------------------------------------------------------------------
-// TRANSLATION REVIEW TAB
-// ---------------------------------------------------------------------------
-
-function TranslationReviewTab({ session, onUpdateSession }) {
-  const { lang } = useLang();
-  const [selectedFmNo, setSelectedFmNo] = useState(null);
-  const [editFields, setEditFields] = useState({});
-  const [busy, setBusy] = useState(false);
-  const [saved, setSaved] = useState(false);
-
-  const activeFm = session.fmList.find((f) => f.no === selectedFmNo);
-
-  const fieldsToReview = [
-    { key: 'title', label: 'Potential Failure Mode' },
-    { key: 'mechanism', label: 'Mechanism' },
-    { key: 'initiation', label: 'Initiation' },
-    { key: 'continuation', label: 'Continuation' },
-    { key: 'progression', label: 'Progression' },
-    { key: 'detectionMonitoring', label: 'Detection / Monitoring' },
-    { key: 'intervention', label: 'Intervention' },
-    { key: 'effect', label: 'Effect' },
-    { key: 'notes', label: 'Notes' },
-    { key: 'ownerAction', label: 'Owner / Action' },
-  ];
-
-  function openFm(fm) {
-    setSelectedFmNo(fm.no);
-    setSaved(false);
-    const initialEdits = {};
-    fieldsToReview.forEach((f) => {
-      if (fm[f.key] && typeof fm[f.key] === 'object') {
-        initialEdits[f.key] = fm[f.key].en || '';
-      }
-    });
-    setEditFields(initialEdits);
-  }
-
-  async function handleSave() {
-    if (!activeFm) return;
-    setBusy(true);
-    try {
-      await api.updateTranslations(session.code, activeFm.no, editFields);
-      // Optimistically update the session
-      const updatedList = session.fmList.map((fm) => {
-        if (fm.no !== activeFm.no) return fm;
-        const newFm = { ...fm };
-        Object.keys(editFields).forEach((key) => {
-          if (newFm[key] && typeof newFm[key] === 'object') {
-            newFm[key] = { ...newFm[key], en: editFields[key] };
-          }
-        });
-        return newFm;
-      });
-      onUpdateSession({ ...session, fmList: updatedList });
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
-    } catch (e) {
-      alert(e.message);
-    }
-    setBusy(false);
-  }
-
-  return (
-    <div className="flex flex-col md:flex-row gap-4">
-      {/* List */}
-      <div className="w-full md:w-1/3 bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col max-h-[600px]">
-        <div className="p-3 bg-slate-50 border-b border-slate-200 font-bold text-slate-800 text-sm flex items-center gap-2">
-          <Globe size={16} className="text-blue-500" />
-          Select Failure Mode
-        </div>
-        <div className="overflow-y-auto flex-1 divide-y divide-slate-100">
-          {session.fmList.map((fm) => (
-            <button
-              key={fm.no}
-              onClick={() => openFm(fm)}
-              className={`w-full text-left p-3 text-sm transition-all hover:bg-slate-50 ${selectedFmNo === fm.no ? 'bg-blue-50 border-l-4 border-blue-500' : 'border-l-4 border-transparent'}`}
-            >
-              <div className="font-bold text-slate-800">FM {fm.no}</div>
-              <div className="text-slate-500 truncate text-xs">{resolveLang(fm.title, 'id')}</div>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Editor */}
-      <div className="w-full md:w-2/3 bg-white border border-slate-200 rounded-2xl shadow-sm p-5">
-        {!activeFm ? (
-          <div className="h-full flex items-center justify-center text-slate-400 italic text-sm">
-            Select a Failure Mode to review translations.
-          </div>
-        ) : (
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-slate-800 text-lg">FM {activeFm.no} Translations</h3>
-              <button
-                disabled={busy}
-                onClick={handleSave}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-sm transition-all flex items-center gap-2 disabled:opacity-50"
-              >
-                <Save size={16} /> {busy ? 'Saving...' : (saved ? 'Saved!' : 'Save Edits')}
-              </button>
-            </div>
-
-            <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
-              {fieldsToReview.map((field) => {
-                const val = activeFm[field.key];
-                if (!val || typeof val !== 'object' || !val.id) return null; // Only show fields that have bilingual data
-
-                return (
-                  <div key={field.key} className="bg-slate-50 rounded-xl p-3 border border-slate-200">
-                    <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">{field.label}</div>
-
-                    <div className="grid md:grid-cols-2 gap-3">
-                      <div>
-                        <div className="text-[10px] font-bold text-slate-400 mb-1">ID (Source)</div>
-                        <div className="text-sm p-2.5 bg-white border border-slate-200 rounded-lg text-slate-700">
-                          {val.id}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-[10px] font-bold text-blue-500 mb-1">EN (Translation)</div>
-                        <textarea
-                          value={editFields[field.key] || ''}
-                          onChange={(e) => setEditFields({ ...editFields, [field.key]: e.target.value })}
-                          className="w-full text-sm p-2 border border-blue-200 rounded-lg text-slate-800 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all min-h-[60px]"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
 // ---------------------------------------------------------------------------
 // FACILITATOR DASHBOARD
 // ---------------------------------------------------------------------------
@@ -783,6 +645,7 @@ function FacilitatorDashboard({ session, onUpdateSession, onExit }) {
   const { lang } = useLang();
   const [tab, setTab] = useState('import');
   const [liveData, setLiveData] = useState(null);
+  const [members, setMembers] = useState([]);
   const [copied, setCopied] = useState(false);
 
   const refresh = useCallback(async () => {
@@ -793,6 +656,10 @@ function FacilitatorDashboard({ session, onUpdateSession, onExit }) {
         const live = await api.getLiveResults(session.code);
         setLiveData(live);
       } catch (e) { console.error('Failed to get live results', e); }
+      try {
+        const membershipData = await api.getMembership(session.code);
+        setMembers(membershipData.members || []);
+      } catch (e) { console.error('Failed to get membership', e); }
     } catch (e) { console.error(e); }
   }, [session.code]); // eslint-disable-line
 
@@ -813,7 +680,7 @@ function FacilitatorDashboard({ session, onUpdateSession, onExit }) {
     { id: 'control', label: t(lang, 'tab.control'), icon: <Lock size={15} /> },
     { id: 'results', label: t(lang, 'tab.results'), icon: <BarChart3 size={15} /> },
     { id: 'overview', label: 'Risk Overview', icon: <RadarIcon size={15} /> },
-    { id: 'translations', label: 'Translations', icon: <Globe size={15} /> },
+    { id: 'participants', label: lang === 'id' ? 'Peserta' : 'Participants', icon: <Users size={15} /> },
     { id: 'export', label: t(lang, 'tab.export'), icon: <Download size={15} /> },
   ];
 
@@ -842,7 +709,7 @@ function FacilitatorDashboard({ session, onUpdateSession, onExit }) {
       {tab === 'import' && <ImportTab session={session} onUpdateSession={onUpdateSession} />}
       {tab === 'upload' && <UploadTab session={session} />}
       {tab === 'control' && <ControlTab session={session} onUpdateSession={onUpdateSession} />}
-      {tab === 'translations' && <TranslationReviewTab session={session} onUpdateSession={onUpdateSession} />}
+      {tab === 'participants' && <ParticipantsTab members={members} lang={lang} />}
       {tab === 'results' && <ResultsTab session={session} liveData={liveData} lang={lang} />}
       {tab === 'overview' && <RiskOverviewTab session={session} liveData={liveData} lang={lang} />}
       {tab === 'export' && <ExportTab session={session} liveData={liveData} />}
