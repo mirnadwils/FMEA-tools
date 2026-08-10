@@ -4,6 +4,8 @@ import React, { useState, useMemo } from 'react';
 import { RadarChart, Radar, PolarAngleAxis, PolarGrid, PolarRadiusAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { ChevronUp, ChevronDown, Search } from 'lucide-react';
 import { buildRiskOverviewData } from '@/lib/risk-overview';
+import RiskDistributionDashboard from './RiskDistributionDashboard';
+import { buildFinalFmDistribution, buildResponseDistribution } from '@/lib/risk-distribution';
 import {
   DEFAULT_RISK_OVERVIEW_SORT,
   getRiskOverviewTableRows,
@@ -85,6 +87,8 @@ export default function RiskOverviewTab({ session, liveData, lang }) {
   if (!liveData) return <div className="text-slate-500 animate-pulse text-sm">Loading...</div>;
 
   const data = buildRiskOverviewData(session.fmList, liveData.aggregated, lang);
+  const finalDistribution = buildFinalFmDistribution(data);
+  const responseRows = buildResponseDistribution(data, liveData.aggregated);
 
   if (!data.length) {
     return (
@@ -103,6 +107,8 @@ export default function RiskOverviewTab({ session, liveData, lang }) {
 
   return (
     <div className="space-y-4">
+      <RiskDistributionDashboard finalDistribution={finalDistribution} responseRows={responseRows} />
+
       {/* Radar Chart — width-driven, capped at 560px, never derived from FM count */}
       <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
         <div className="flex items-center justify-between mb-4">
