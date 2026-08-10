@@ -25,3 +25,10 @@ test('marks every imported FM incomplete when a member has no drafts', () => {
   assert.deepEqual(member.completedFmNos, []);
   assert.deepEqual(member.incompleteFmNos, ['FM-1']);
 });
+
+import { readFile } from 'node:fs/promises';
+test('membership route returns progress only from the facilitator branch', async () => {
+  const route = await readFile(new URL('../src/app/api/sessions/[code]/membership/route.js', import.meta.url), 'utf8');
+  assert.match(route, /getSessionMembersWithProgress/);
+  assert.match(route, /if \(appRole === 'facilitator'\)/);
+});

@@ -1,4 +1,5 @@
 import { query } from './db';
+import { buildMemberProgress } from './member-progress';
 
 /**
  * Sync a Clerk user to the Neon users table.
@@ -125,6 +126,26 @@ export async function getSessionMembers(sessionCode) {
      ORDER BY sm.joined_at`,
     [sessionCode.toUpperCase()]
   );
+}
+
+/**
+ * Get all members of a session with their FM completion progress (for facilitator view).
+ */
+export async function getSessionMembersWithProgress(sessionCode) {
+  const members = await getSessionMembers(sessionCode);
+  const fmRows = await query(
+    `SELECT fm.fm_no FROM failure_modes fm JOIN sessions s ON fm.session_id = s.id WHERE s.code = $1 ORDER BY fm.id`,
+    [sessionCode.toUpperCase()],
+  );
+  const drafts = await query(
+    `SELECT ad.member_id, ad.fm_no, ad.risk_likelihood, ad.negative_consequence
+     FROM assessment_drafts ad
+     JOIN session_members sm ON sm.id = ad.member_id
+     JOIN sessions s ON s.id = sm.session_id
+     WHERE s.code = $1`,
+    [sessionCode.toUpperCase()],
+  );
+  return buildMemberProgress(members, fmRows.map((row) => row.fm_no), drafts);
 }
 
 /**

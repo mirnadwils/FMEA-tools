@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getAuthenticatedUser } from '@/lib/auth';
-import { getUserByClerkId, joinSessionAsMember, getSessionMembers, getSessionMembership, updateSessionMemberProfile } from '@/lib/users';
+import { getUserByClerkId, joinSessionAsMember, getSessionMembers, getSessionMembersWithProgress, getSessionMembership, updateSessionMemberProfile } from '@/lib/users';
 import { writeAuditLog } from '@/lib/audit';
 import { query } from '@/lib/db';
 
@@ -60,7 +60,7 @@ export async function GET(request, { params }) {
     // Check own membership
     const myMembership = await getSessionMembership(code, userId);
 
-    const members = await getSessionMembers(code);
+    const members = appRole === 'facilitator' ? await getSessionMembersWithProgress(code) : await getSessionMembers(code);
 
     if (appRole === 'facilitator') {
       // Facilitator sees full details
