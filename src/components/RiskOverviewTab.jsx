@@ -1,8 +1,14 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { RadarChart, Radar, PolarAngleAxis, PolarGrid, PolarRadiusAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { ChevronUp, ChevronDown, Search } from 'lucide-react';
 import { buildRiskOverviewData } from '@/lib/risk-overview';
+import {
+  DEFAULT_RISK_OVERVIEW_SORT,
+  getRiskOverviewTableRows,
+  toggleRiskOverviewSort,
+} from '@/lib/risk-overview-table';
 
 /**
  * Custom tooltip for the Risk Overview radar chart.
@@ -41,11 +47,41 @@ function RiskOverviewTooltip({ active, payload }) {
   );
 }
 
+/** Sortable column header button */
+function SortHeader({ label, sortKey, currentSort, onToggle, align = 'left' }) {
+  const isActive = currentSort.key === sortKey;
+  const ariaSortValue = isActive ? (currentSort.direction === 'asc' ? 'ascending' : 'descending') : 'none';
+
+  return (
+    <th className={`${align === 'center' ? 'text-center' : 'text-left'} text-xs font-bold text-slate-500 uppercase tracking-wider py-2 px-2`}>
+      <button
+        type="button"
+        onClick={() => onToggle(sortKey)}
+        className={`inline-flex items-center gap-0.5 hover:text-slate-700 transition-colors ${isActive ? 'text-slate-800' : ''}`}
+        aria-sort={ariaSortValue}
+      >
+        {label}
+        {isActive && (
+          currentSort.direction === 'asc'
+            ? <ChevronUp size={12} className="text-teal-600" />
+            : <ChevronDown size={12} className="text-teal-600" />
+        )}
+      </button>
+    </th>
+  );
+}
+
 /**
  * Facilitator-only Risk Overview radar tab.
- * Renders a Recharts radar chart comparing final Merdeka risk scores across all failure modes.
+ * Renders a Recharts radar chart comparing final Merdeka risk scores across all failure modes,
+ * with a filterable/sortable summary table below.
  */
 export default function RiskOverviewTab({ session, liveData, lang }) {
+  const [query, setQuery] = useState('');
+  const [dataStatus, setDataStatus] = useState('all');
+  const [riskLevel, setRiskLevel] = useState('all');
+  const [sort, setSort] = useState(DEFAULT_RISK_OVERVIEW_SORT);
+
   if (!liveData) return <div className="text-slate-500 animate-pulse text-sm">Loading...</div>;
 
   const data = buildRiskOverviewData(session.fmList, liveData.aggregated, lang);
@@ -58,10 +94,16 @@ export default function RiskOverviewTab({ session, liveData, lang }) {
     );
   }
 
-  const chartHeight = Math.max(420, data.length * 48);
+  // Table rows are derived from data but radar always shows all FMs
+  const tableRows = getRiskOverviewTableRows(data, { query, dataStatus, riskLevel, sort });
+
+  function handleToggleSort(key) {
+    setSort((current) => toggleRiskOverviewSort(current, key));
+  }
 
   return (
     <div className="space-y-4">
+      {/* Radar Chart — width-driven, capped at 560px, never derived from FM count */}
       <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
         <div className="flex items-center justify-between mb-4">
           <div>
@@ -78,7 +120,7 @@ export default function RiskOverviewTab({ session, liveData, lang }) {
           </div>
         </div>
 
-        <div style={{ width: '100%', height: chartHeight }}>
+        <div className="mx-auto w-full max-w-[560px] aspect-square min-h-[360px] max-h-[560px]">
           <ResponsiveContainer width="100%" height="100%">
             <RadarChart data={data} outerRadius="72%">
               <PolarGrid stroke="#e2e8f0" />
@@ -106,32 +148,74 @@ export default function RiskOverviewTab({ session, liveData, lang }) {
         </div>
       </div>
 
-      {/* Summary table below the chart */}
+      {/* Summary table with search, filters, and sortable headers */}
       <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-slate-100">
-              <th className="text-left text-xs font-bold text-slate-500 uppercase tracking-wider py-2 pr-3">FM</th>
-              <th className="text-left text-xs font-bold text-slate-500 uppercase tracking-wider py-2 pr-3">Title</th>
-              <th className="text-center text-xs font-bold text-slate-500 uppercase tracking-wider py-2 px-2">L</th>
-              <th className="text-center text-xs font-bold text-slate-500 uppercase tracking-wider py-2 px-2">C</th>
-              <th className="text-center text-xs font-bold text-slate-500 uppercase tracking-wider py-2 px-2">Score</th>
-              <th className="text-left text-xs font-bold text-slate-500 uppercase tracking-wider py-2 pl-2">Level</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.map((item) => (
-              <tr key={item.fmNo} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
-                <td className="py-2 pr-3 font-bold text-slate-700">{item.fmNo}</td>
-                <td className="py-2 pr-3 text-slate-600 max-w-xs truncate">{item.title}</td>
-                <td className="py-2 px-2 text-center text-slate-600">{item.hasData ? item.roundedLikelihood : '—'}</td>
-                <td className="py-2 px-2 text-center text-slate-600">{item.hasData ? item.roundedConsequence : '—'}</td>
-                <td className="py-2 px-2 text-center font-bold text-slate-800">{item.hasData ? item.riskScore : '—'}</td>
-                <td className="py-2 pl-2 text-slate-600">{item.hasData ? item.riskLevel : <span className="text-slate-400 italic">No data</span>}</td>
+        {/* Control bar */}
+        <div className="flex flex-col gap-3 mb-4 md:flex-row md:items-center">
+          <div className="relative flex-1 max-w-xs">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search FM or title"
+              aria-label="Search FM or title"
+              className="w-full pl-8 pr-3 py-2 border border-slate-300 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-teal-400 focus:border-teal-400 outline-none transition-all"
+            />
+          </div>
+          <select
+            value={dataStatus}
+            onChange={(event) => setDataStatus(event.target.value)}
+            aria-label="Filter data status"
+            className="px-3 py-2 border border-slate-300 rounded-xl text-sm text-slate-700 bg-white focus:ring-2 focus:ring-teal-400 outline-none transition-all"
+          >
+            <option value="all">All data</option>
+            <option value="hasData">Has data</option>
+            <option value="noData">No data</option>
+          </select>
+          <select
+            value={riskLevel}
+            onChange={(event) => setRiskLevel(event.target.value)}
+            aria-label="Filter risk level"
+            className="px-3 py-2 border border-slate-300 rounded-xl text-sm text-slate-700 bg-white focus:ring-2 focus:ring-teal-400 outline-none transition-all"
+          >
+            <option value="all">All levels</option>
+            <option value="Low">Low</option>
+            <option value="Moderate">Moderate</option>
+            <option value="High">High</option>
+            <option value="Extreme">Extreme</option>
+          </select>
+        </div>
+
+        {tableRows.length === 0 ? (
+          <div className="text-sm text-slate-400 italic text-center py-6">
+            No failure modes match these controls.
+          </div>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-100">
+                <SortHeader label="FM" sortKey="fmNo" currentSort={sort} onToggle={handleToggleSort} />
+                <SortHeader label="Title" sortKey="title" currentSort={sort} onToggle={handleToggleSort} />
+                <SortHeader label="L" sortKey="roundedLikelihood" currentSort={sort} onToggle={handleToggleSort} align="center" />
+                <SortHeader label="C" sortKey="roundedConsequence" currentSort={sort} onToggle={handleToggleSort} align="center" />
+                <SortHeader label="Score" sortKey="riskScore" currentSort={sort} onToggle={handleToggleSort} align="center" />
+                <SortHeader label="Level" sortKey="riskLevel" currentSort={sort} onToggle={handleToggleSort} />
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {tableRows.map((item) => (
+                <tr key={item.fmNo} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                  <td className="py-2 px-2 font-bold text-slate-700">{item.fmNo}</td>
+                  <td className="py-2 px-2 text-slate-600 max-w-xs truncate">{item.title}</td>
+                  <td className="py-2 px-2 text-center text-slate-600">{item.hasData ? item.roundedLikelihood : '—'}</td>
+                  <td className="py-2 px-2 text-center text-slate-600">{item.hasData ? item.roundedConsequence : '—'}</td>
+                  <td className="py-2 px-2 text-center font-bold text-slate-800">{item.hasData ? item.riskScore : '—'}</td>
+                  <td className="py-2 px-2 text-slate-600">{item.hasData ? item.riskLevel : <span className="text-slate-400 italic">No data</span>}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );
