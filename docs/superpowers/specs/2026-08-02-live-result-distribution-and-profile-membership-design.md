@@ -74,6 +74,16 @@ The Risk Overview table beneath the chart provides these client-side controls:
 
 Filters and sorting apply only to the table rows. The radar always renders every session FM and continues to show final Merdeka scores on the 1-to-25 scale, independent of table control state.
 
+### Risk Distribution Dashboard
+
+Before the Risk Overview radar, the facilitator sees a risk-distribution dashboard with four summary cards: `Extreme`, `High`, `Moderate`, and `Low`. Each card counts FMs by their final risk level, which is the existing experience-weighted final Likelihood and Consequence mapped through the Merdeka matrix. FMs without complete responses are excluded from these four counts and their pie-chart denominator.
+
+The dashboard includes a pie chart using the same final-FM counts and percentages for Extreme, High, Moderate, and Low.
+
+It also includes a horizontal stacked bar chart with one bar per FM. Each segment represents the number of complete participant responses that map to the corresponding individual Merdeka risk level. These response-level counts are derived from the existing anonymous `combinationDistribution` by mapping each Likelihood × Consequence cell through the matrix and summing the cell count into its level. It does not display individual ratings, identity, experience, or weighting.
+
+Every session FM appears in the stacked chart. An FM with no complete responses has zero-length segments and its tooltip explicitly reports `No complete responses`. The dashboard, pie, and stacked bars refresh with the existing live facilitator polling and do not affect the radar or table filters/sorting.
+
 ## Participant Membership
 
 The participant join screen contains only the session-code field and Join button. It no longer renders or validates role, custom role, or experience inputs.
@@ -110,6 +120,8 @@ Automated tests must cover:
 - Drill-down data uses the same ordered, language-resolved FM fields as the assessment walkthrough and does not include participant identities.
 - Table filtering matches both FM number and localized title, and combines data-status and risk-level filters predictably.
 - Clicking the same sortable table header reverses its direction without changing radar data or its displayed FM set.
+- Final-FM distribution counts exclude FMs without complete responses and match pie-chart percentages.
+- Individual-response distribution maps every nonzero cell in `combinationDistribution` to its Merdeka risk level without exposing raw response records.
 - Membership creation using stored profile data rather than request-body values.
 - Rejoining does not overwrite an existing membership’s saved role or experience.
 - Missing persisted profile attributes prevent joining.
