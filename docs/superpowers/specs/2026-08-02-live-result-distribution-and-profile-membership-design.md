@@ -61,6 +61,19 @@ The chart uses all session FMs. FMs with no complete saved response appear at va
 
 The Risk Overview does not use response counts as radar values and does not change the existing per-FM weighted calculation. It refreshes on the same facilitator polling cycle as Live Results and remains unavailable to participants.
 
+### Risk Overview Layout and Table Controls
+
+The radar chart uses a width-driven, centred square chart area with a fixed responsive height range of 360 to 560 pixels. Its height must not be derived from the number of FMs. This prevents the chart canvas from growing vertically while the radar diameter remains constrained by its width, eliminating excessive empty space above and below the radar.
+
+The Risk Overview table beneath the chart provides these client-side controls:
+
+- A text search matching FM number or language-resolved FM title.
+- A data-status filter: `All`, `Has data`, or `No data`.
+- A risk-level filter: `All`, `Low`, `Moderate`, `High`, or `Extreme`.
+- Clickable sortable headers for FM, title, rounded Likelihood, rounded Consequence, final score, and risk level. Repeated click on the same header reverses the direction.
+
+Filters and sorting apply only to the table rows. The radar always renders every session FM and continues to show final Merdeka scores on the 1-to-25 scale, independent of table control state.
+
 ## Participant Membership
 
 The participant join screen contains only the session-code field and Join button. It no longer renders or validates role, custom role, or experience inputs.
@@ -95,6 +108,8 @@ Automated tests must cover:
 - Correct 5 by 5 pairing counts and exclusion of incomplete drafts.
 - Radar-chart data maps every session FM to its final 1-to-25 Merdeka risk score, using zero only for FMs without complete responses.
 - Drill-down data uses the same ordered, language-resolved FM fields as the assessment walkthrough and does not include participant identities.
+- Table filtering matches both FM number and localized title, and combines data-status and risk-level filters predictably.
+- Clicking the same sortable table header reverses its direction without changing radar data or its displayed FM set.
 - Membership creation using stored profile data rather than request-body values.
 - Rejoining does not overwrite an existing membership’s saved role or experience.
 - Missing persisted profile attributes prevent joining.
