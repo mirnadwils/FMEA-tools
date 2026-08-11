@@ -4,7 +4,7 @@ import FacilitatorReport from './FacilitatorReport';
 export default async function ReportPage({ params }) {
   // Enforce facilitator authorization boundary
   const user = await getAuthenticatedUser();
-  await requireAppRole(['FACILITATOR', 'ADMIN'], user);
+  await requireAppRole(['facilitator'], user);
 
   // Next.js 16 App Router requires awaiting params
   const { code } = await params;
