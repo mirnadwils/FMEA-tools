@@ -1,0 +1,71 @@
+/* report.css */
+
+.report-container {
+  min-height: 100vh;
+  background-color: #f9fafb;
+}
+
+.print-only {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 15mm;
+  }
+
+  body, html {
+    background-color: #ffffff !important;
+    margin: 0;
+    padding: 0;
+  }
+
+  .report-container {
+    background-color: #ffffff !important;
+  }
+
+  .screen-only {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+  
+  .print-only-inline {
+    display: inline !important;
+  }
+
+  /* Page breaks */
+  .report-section {
+    page-break-before: always;
+    break-before: page;
+  }
+
+  .report-fm-section {
+    page-break-before: always;
+    break-before: page;
+  }
+
+  /* Avoid breaking inside cards, charts, rows */
+  .report-score-card,
+  .report-chart-container,
+  .report-description-notice,
+  .report-table-row {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* Ensure text is dark and readable */
+  .report-container,
+  .report-container * {
+    color: #000000 !important;
+  }
+  
+  /* Preserve background colors for charts and badges where possible */
+  .report-preserve-bg {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}

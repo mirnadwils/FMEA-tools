@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import Link from 'next/link';
 import { useUser } from '@clerk/nextjs';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, CartesianGrid } from 'recharts';
 import { Radar as RadarIcon } from 'lucide-react';
@@ -629,9 +630,19 @@ function ExportTab({ session, liveData }) {
     <div className="bg-white border border-slate-200 rounded-2xl p-6 text-center shadow-sm">
       <FileSpreadsheet size={40} className="mx-auto text-teal-600 mb-3" />
       <div className="font-bold text-slate-800 text-lg">{t(lang, 'export.title')}</div>
-      <button onClick={exportExcel} className="mt-4 inline-flex items-center gap-2 bg-gradient-to-r from-teal-600 to-emerald-600 text-white font-bold px-6 py-3 rounded-xl shadow-sm hover:from-teal-700 hover:to-emerald-700 transition-all">
-        <Download size={18} /> {t(lang, 'export.download')}
-      </button>
+      <div className="flex justify-center gap-4 mt-4">
+        <button onClick={exportExcel} className="inline-flex items-center gap-2 bg-gradient-to-r from-teal-600 to-emerald-600 text-white font-bold px-6 py-3 rounded-xl shadow-sm hover:from-teal-700 hover:to-emerald-700 transition-all">
+          <Download size={18} /> {t(lang, 'export.download')}
+        </button>
+        <a 
+          href={`/facilitator/sessions/${encodeURIComponent(session.code)}/report`} 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 bg-slate-800 text-white font-bold px-6 py-3 rounded-xl shadow-sm hover:bg-slate-900 transition-all"
+        >
+          {t(lang, 'export.print')}
+        </a>
+      </div>
     </div>
   );
 }
@@ -664,6 +675,7 @@ function FacilitatorDashboard({ session, onUpdateSession, onExit }) {
   }, [session.code]); // eslint-disable-line
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     refresh();
     const t = setInterval(refresh, 6000);
     return () => clearInterval(t);
@@ -798,6 +810,7 @@ function ParticipantMain({ initialSession, onExit }) {
   }, [session.code]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     refresh();
     const t = setInterval(refresh, 6000);
     return () => clearInterval(t);
@@ -1038,12 +1051,12 @@ function AppContent() {
           <p className="text-slate-500 mt-2 max-w-md">
             Please sign in to access workshop assessments, saved drafts, and session materials.
           </p>
-          <a
+          <Link
             href="/sign-in"
             className="mt-6 inline-flex items-center gap-2 bg-gradient-to-r from-teal-600 to-emerald-600 text-white font-bold px-6 py-3 rounded-xl shadow-md hover:from-teal-700 hover:to-emerald-700 transition-all"
           >
             <LogIn size={18} /> Sign In with Email
-          </a>
+          </Link>
         </div>
       </AppShell>
     );

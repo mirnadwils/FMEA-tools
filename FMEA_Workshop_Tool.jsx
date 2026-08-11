@@ -752,6 +752,7 @@ function FacilitatorDashboard({ session, onUpdateSession, onExit }) {
   }, [session.code]); // eslint-disable-line
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     refresh();
     const t = setInterval(refresh, 5000);
     return () => clearInterval(t);
@@ -887,6 +888,7 @@ function ParticipantMain({ initialSession, participant, onExit }) {
   }, [session.code]); // eslint-disable-line
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     refresh();
     const t = setInterval(refresh, 5000);
     return () => clearInterval(t);

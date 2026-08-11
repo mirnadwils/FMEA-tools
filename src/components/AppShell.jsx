@@ -18,6 +18,7 @@ export function LangProvider({ children, initialLang = 'id' }) {
 
   useEffect(() => {
     const saved = typeof window !== 'undefined' ? localStorage.getItem('fmea_lang') : null;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (saved) setLang(saved);
   }, []);
 
