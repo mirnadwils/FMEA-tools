@@ -4,6 +4,7 @@ import React, { useEffect, useRef } from 'react';
 import { X, Shield } from 'lucide-react';
 import { t } from '@/lib/i18n';
 import { resolveLocalizedValue } from '@/lib/failure-mode-context';
+import { getRiskCell } from '@/lib/merdeka';
 import FailureModeContext from './FailureModeContext';
 import LiveResultCharts from './LiveResultCharts';
 
@@ -110,6 +111,51 @@ export default function LiveResultDetailModal({ fm, aggregate, lang, onClose }) 
             <p className="text-sm text-slate-400 italic">{t(lang, 'results.no_data')}</p>
           )}
         </div>
+
+        {/* Participant Assessments Table */}
+        {aggregate.memberAssessments && aggregate.memberAssessments.length > 0 && (
+          <div className="px-5 pb-6">
+            <h4 className="text-md font-bold text-slate-800 mb-3 border-t border-slate-100 pt-4">Participant Assessments</h4>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm border-collapse">
+                <thead>
+                  <tr className="bg-slate-50 border-y border-slate-200">
+                    <th className="py-2 px-3 font-semibold text-slate-600">Participant Name</th>
+                    <th className="py-2 px-3 font-semibold text-slate-600">Experience</th>
+                    <th className="py-2 px-3 font-semibold text-slate-600 text-center w-16">L</th>
+                    <th className="py-2 px-3 font-semibold text-slate-600 text-center w-16">C</th>
+                    <th className="py-2 px-3 font-semibold text-slate-600 text-center w-24">Risk Score</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {aggregate.memberAssessments.map((a, i) => {
+                    const r = getRiskCell(a.riskLikelihood, a.negativeConsequence);
+                    return (
+                      <tr key={i} className="border-b border-slate-100 hover:bg-slate-50/50">
+                        <td className="py-2 px-3 font-medium text-slate-700">{a.memberName || 'Unknown'}</td>
+                        <td className="py-2 px-3 text-slate-600 capitalize">{a.experience}</td>
+                        <td className="py-2 px-3 text-center text-slate-700">{a.riskLikelihood}</td>
+                        <td className="py-2 px-3 text-center text-slate-700">{a.negativeConsequence}</td>
+                        <td className="py-2 px-3 text-center">
+                          {r ? (
+                            <span className={`inline-block w-full rounded-md text-xs font-bold py-1 ${
+                              r.level === 'Extreme' ? 'bg-red-100 text-red-800' :
+                              r.level === 'High' ? 'bg-orange-100 text-orange-800' :
+                              r.level === 'Moderate' ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-green-100 text-green-800'
+                            }`}>
+                              {r.score}
+                            </span>
+                          ) : '—'}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
 
         {/* Close footer */}
         <div className="p-4 border-t border-slate-100 flex justify-end sticky bottom-0 bg-white/95 backdrop-blur-md rounded-b-2xl">

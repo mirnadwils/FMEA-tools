@@ -26,14 +26,16 @@ export async function GET(request, { params }) {
     }
     const sessionId = sessions[0].id;
 
-    // Get all members with their experience level and saved risk drafts
+    // Get all members with their experience level and saved risk drafts, plus user names
     const rows = await query(
       `SELECT sm.id AS member_id,
               sm.experience_level,
+              u.display_name,
               ad.fm_no,
               ad.risk_likelihood,
               ad.negative_consequence
        FROM session_members sm
+       JOIN users u ON u.clerk_user_id = sm.clerk_user_id
        LEFT JOIN assessment_drafts ad ON ad.member_id = sm.id
        WHERE sm.session_id = $1`,
       [sessionId]
@@ -52,6 +54,8 @@ export async function GET(request, { params }) {
         fmData[row.fm_no] = [];
       }
       fmData[row.fm_no].push({
+        memberId: row.member_id,
+        memberName: row.display_name,
         riskLikelihood: row.risk_likelihood,
         negativeConsequence: row.negative_consequence,
         experience: row.experience_level || 'beginner',
@@ -101,6 +105,7 @@ export async function GET(request, { params }) {
         likelihoodDistribution,
         consequenceDistribution,
         combinationDistribution,
+        memberAssessments: assessments,
       });
     }
 
