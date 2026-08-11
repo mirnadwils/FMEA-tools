@@ -3,15 +3,17 @@ import { buildFinalFmDistribution, buildResponseDistribution } from './risk-dist
 
 export function sortFailureModesForReport(fmList) {
   return [...fmList].sort((a, b) => {
-    // Basic natural sort on fmNo, assuming format like FM1, FM2, FM10
-    const aMatch = a.fmNo.match(/FM(\d+)/);
-    const bMatch = b.fmNo.match(/FM(\d+)/);
+    // Basic natural sort on fm.no, assuming format like FM1, FM2, FM10
+    const aMatch = (a.no || a.fmNo)?.match(/FM(\d+)/);
+    const bMatch = (b.no || b.fmNo)?.match(/FM(\d+)/);
     
     if (aMatch && bMatch) {
       return parseInt(aMatch[1], 10) - parseInt(bMatch[1], 10);
     }
     
-    return a.fmNo.localeCompare(b.fmNo);
+    const aNo = a.no || a.fmNo || '';
+    const bNo = b.no || b.fmNo || '';
+    return aNo.localeCompare(bNo);
   });
 }
 
@@ -19,13 +21,14 @@ export function buildReportLiveResultRows(fmList, aggregated) {
   const sortedFMs = sortFailureModesForReport(fmList);
   
   return sortedFMs.map(fm => {
-    const agg = aggregated.find(a => a.fmNo === fm.fmNo);
+    const fmNo = fm.no || fm.fmNo;
+    const agg = aggregated.find(a => a.fmNo === fmNo);
     const hasCompleteAssessments = !!agg && agg.count > 0;
     
     return {
-      fmNo: fm.fmNo,
+      fmNo: fmNo,
       category: fm.category,
-      potentialFailureMode: fm.potentialFailureMode,
+      potentialFailureMode: fm.potentialFailureMode || fm.title,
       mainTrigger: fm.mainTrigger,
       initiation: fm.initiation,
       continuation: fm.continuation,
@@ -58,8 +61,8 @@ export function buildReportRiskOverview(fmList, aggregated) {
   
   // Sort the overview rows by natural FM order
   const sortedOverviewRows = [...overviewRows].sort((a, b) => {
-    const aMatch = a.fmNo.match(/FM(\d+)/);
-    const bMatch = b.fmNo.match(/FM(\d+)/);
+    const aMatch = (a.fmNo || '')?.match(/FM(\d+)/);
+    const bMatch = (b.fmNo || '')?.match(/FM(\d+)/);
     
     if (aMatch && bMatch) {
       return parseInt(aMatch[1], 10) - parseInt(bMatch[1], 10);

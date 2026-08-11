@@ -32,8 +32,8 @@ export default function FacilitatorReport({ sessionCode }) {
 
         if (mounted) {
           setData({
-            session: sessionData,
-            membership: membershipData,
+            session: sessionData.session,
+            membership: membershipData.members || [],
             liveResults: liveResultsData
           });
           setLoading(false);
